@@ -1,9 +1,9 @@
-﻿using LlmTornado;
+﻿using GUA_Blazor.Models;
+using LlmTornado;
 using LlmTornado.Chat;
 using LlmTornado.ChatFunctions;
 using LlmTornado.Code;
 using LlmTornado.Common;
-using Microsoft.AspNetCore.WebUtilities;
 
 namespace GUA_Blazor.Service;
 
@@ -15,7 +15,8 @@ public class AIService
     public AIService()
     {
         _api = new TornadoApi(new Uri("http://127.0.0.1:8080"));
-        _conversation = _api.Chat.CreateConversation(new ChatRequest() {
+        _conversation = _api.Chat.CreateConversation(new ChatRequest()
+        {
             Tools = [
                 new Tool(new ToolFunction("get_weather", "gets the current weather", new
                 {
@@ -30,7 +31,13 @@ public class AIService
                     },
                     required = new List<string> { "location" }
                 }))
-            ]
+            ],
+            Messages = [
+                new LlmTornado.Chat.ChatMessage(ChatMessageRoles.System, Instructions.BasicInstruction)
+            ],
+            InvokeClrToolsAutomatically = false,
+            ToolChoice = OutboundToolChoice.None,
+            ParallelToolCalls = true
         });
     }
 
