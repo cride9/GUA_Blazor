@@ -461,7 +461,22 @@ html, body {
     outline: none;
     transition: border-color .2s, box-shadow .2s;
     min-height: 48px;
+    overflow: hidden;
+    max-height: 250px;
 }
+
+    .chat-input::-webkit-scrollbar {
+        width: 3px;
+    }
+
+    .chat-input::-webkit-scrollbar-track {
+        background: transparent;
+    }
+
+    .chat-input::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+    }
 
     .chat-input:focus {
         border-color: #3a3a3a;
@@ -883,6 +898,191 @@ html, body {
         background: var(--border);
         border-radius: 2px;
     }
+
+/* Hide the raw InputFile input */
+.input-upload {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+
+.upload-btn {
+    position: absolute;
+    left: 10px;
+    bottom: 11px;
+    width: 34px;
+    height: 34px;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s ease, color .15s ease;
+    padding: 0;
+    flex-shrink: 0;
+}
+
+    .upload-btn:hover {
+        background: var(--accent-dim);
+        color: var(--accent);
+    }
+
+    .upload-btn svg {
+        width: 16px;
+        height: 16px;
+        display: block;
+    }
+
+/* Shift textarea to make room for upload btn on the left */
+.chat-input {
+    padding: 13px 50px 13px 52px; /* override the original left padding */
+}
+
+/* File preview chips row */
+.file-preview-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    width: 100%;
+    max-width: 740px;
+    padding: 0 2px;
+}
+
+.file-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 10px 5px 8px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    font-size: 11px;
+    color: var(--text-secondary);
+    max-width: 200px;
+    animation: slideUp .15s ease;
+}
+
+.file-chip-icon {
+    width: 14px;
+    height: 14px;
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+.file-chip-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-chip-size {
+    color: var(--muted);
+    font-size: 10px;
+    white-space: nowrap;
+}
+
+.file-chip-remove {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+    transition: color .12s;
+}
+
+    .file-chip-remove:hover {
+        color: #e05555;
+    }
+
+    .file-chip-remove svg {
+        width: 11px;
+        height: 11px;
+    }
+
+.attachment-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+    max-width: calc(100% - 48px);
+}
+
+.user-msg .attachment-row {
+    justify-content: flex-end;
+}
+
+.attachment-thumb-wrapper {
+    border-radius: var(--radius-sm);
+    overflow: hidden;
+    border: 1px solid var(--border);
+    transition: border-color .15s;
+}
+
+    .attachment-thumb-wrapper:hover {
+        border-color: var(--accent);
+        cursor: zoom-in;
+    }
+
+.attachment-thumb {
+    width: 120px;
+    height: 90px;
+    object-fit: cover;
+    display: block;
+}
+
+.image-preview-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.85);
+    display: grid;
+    place-items: center;
+    z-index: 1000;
+    cursor: zoom-out;
+    animation: fadeIn .15s ease;
+}
+
+.image-preview-full {
+    max-width: 90vw;
+    max-height: 90vh;
+    object-fit: contain;
+    border-radius: var(--radius);
+    box-shadow: 0 8px 40px rgba(0,0,0,.6);
+}
+
+@media (max-width: 480px) {
+    .attachment-thumb {
+        width: 90px;
+        height: 68px;
+    }
+}
+
+@media (max-width: 768px) {
+    .chat-input {
+        padding: 12px 48px 12px 48px;
+    }
+
+    .upload-btn {
+        left: 8px;
+        bottom: 6px;
+        width: 32px;
+        height: 32px;
+    }
+
+        .upload-btn svg {
+            width: 15px;
+            height: 15px;
+        }
+}
 
 /* Responsive adjustments */
 @media (max-width: 768px) {

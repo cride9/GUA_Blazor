@@ -4,6 +4,7 @@ using LlmTornado.Chat;
 using LlmTornado.ChatFunctions;
 using LlmTornado.Code;
 using LlmTornado.Common;
+using LlmTornado.Images;
 
 namespace GUA_Blazor.Service;
 
@@ -41,9 +42,48 @@ public class AIService
         });
     }
 
-    public void SendMessage(string message, Action<string> onResponse)
+    public void SendMessageWithImage(string message, List<string> imagesPath, Action<string> onResponse)
     {
-        _conversation.AppendUserInput(message).StreamResponse(onResponse);
+        ChatStreamEventHandler handler = new()
+        {
+            MessageTokenHandler = async (x) =>
+            {
+                onResponse?.Invoke(x!);
+                return;
+            },
+            FunctionCallHandler = async (calls) =>
+            {
+                ResolveFunctions(calls, onResponse);
+                return;
+            },
+            AfterFunctionCallsResolvedHandler = async (results, currentHandler) =>
+            {
+                await _conversation.StreamResponseRich(currentHandler);
+            }
+        };
+
+        ChatMessagePart[] parts = new ChatMessagePart[imagesPath.Count + 1];
+        parts[0] = new ChatMessagePart(message);
+
+        for (int i = 0; i < imagesPath.Count; i++)
+        {
+            var imagePath = imagesPath[i];
+            var mimeType = Path.GetExtension(imagePath).ToLowerInvariant() switch
+            {
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                ".webp" => "image/webp",
+                _ => "image/jpeg"
+            };
+
+            byte[] bytes = File.ReadAllBytes(imagePath);
+            string dataUrl = $"data:{mimeType};base64,{Convert.ToBase64String(bytes)}";
+            parts[i + 1] = new ChatMessagePart(dataUrl, ImageDetail.High);
+        }
+
+        var messageImage = new LlmTornado.Chat.ChatMessage(ChatMessageRoles.User, parts);
+        _conversation.AppendMessage(messageImage).StreamResponseRich(handler);
     }
 
     public void SendMessageWithTool(string message, Action<string> onResponse)
@@ -52,7 +92,7 @@ public class AIService
         {
             MessageTokenHandler = async (x) =>
             {
-                onResponse?.Invoke(x);
+                onResponse?.Invoke(x!);
                 return;
             },
             FunctionCallHandler = async (calls) =>

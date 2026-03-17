@@ -1,6 +1,7 @@
 ﻿@page "/"
 @rendermode InteractiveServer
 @inject IJSRuntime JS
+@inject IWebHostEnvironment Environment
 
 <PageTitle>GUA - Companion</PageTitle>
 
@@ -35,16 +36,17 @@
         </header>
 
         <div class="messages-area" id="messagesArea">
+
+            @if (!chatHistory.ContainsKey(activeSessionId) || !activeSession.Messages.Any())
+            {
+                <div class="empty-state">
+                    <div class="empty-icon">✦</div>
+                    <h2 class="empty-title">How can I help you?</h2>
+                    <p class="empty-sub">Ask me anything. I'm here to assist.</p>
+                </div>
+            }
             @if (chatHistory.ContainsKey(activeSessionId))
             {
-                @if (!activeSession.Messages.Any())
-                {
-                    <div class="empty-state">
-                        <div class="empty-icon">✦</div>
-                        <h2 class="empty-title">How can I help you?</h2>
-                        <p class="empty-sub">Ask me anything. I'm here to assist.</p>
-                    </div>
-                }
                 var messageIndex = 0;
                 
                 @foreach (var msg in activeSession.Messages)
@@ -66,6 +68,21 @@
                             <div class="bubble @(msg.IsUser ? "user-bubble" : "ai-bubble") markdown-body">
                                 @((MarkupString)RenderMarkdown(cleanContent))
                             </div>
+
+                            @if (msg.AttachmentPaths.Any())
+                            {
+                                <div class="attachment-row">
+                                    @foreach (var path in msg.AttachmentPaths)
+                                    {
+                                        <div class="attachment-thumb-wrapper">
+                                            <img class="attachment-thumb"
+                                                 src="@GetImageDataUrl(path)"
+                                                 alt="attachment"
+                                                 @onclick="() => OpenImagePreview(path)" />
+                                        </div>
+                                    }
+                                </div>
+                            }
 
                             @if (hasToolcall)
                             {
@@ -112,6 +129,13 @@
     
                     messageIndex++;
                 }
+
+                @if (previewImageUrl is not null)
+                {
+                    <div class="image-preview-overlay" @onclick="ClosePreview">
+                        <img class="image-preview-full" src="@previewImageUrl" alt="preview" />
+                    </div>
+                }
             }
 
             @if (isLoading)
@@ -128,14 +152,51 @@
         </div>
 
         <div class="input-area">
+
+            @if (uploadedFiles.Any())
+            {
+                <div class="file-preview-row">
+                    @foreach (var file in uploadedFiles)
+                    {
+                        <div class="file-chip">
+                            <svg class="file-chip-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                <polyline points="14 2 14 8 20 8" />
+                            </svg>
+                            <span class="file-chip-name">@file.Name</span>
+                            <span class="file-chip-size">@FormatFileSize(file.Size)</span>
+                            <button class="file-chip-remove" @onclick="() => RemoveFile(file)" title="Remove">
+                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="18" y1="6" x2="6" y2="18" />
+                                    <line x1="6" y1="6" x2="18" y2="18" />
+                                </svg>
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+
             <div class="input-wrapper">
+                <label class="upload-btn" title="Attach files">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                         fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66
+                        l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                    </svg>
+                    <InputFile class="input-upload" OnChange="LoadFiles" multiple />
+                </label>
+
                 <textarea class="chat-input"
                           placeholder="Message GUA…"
+                          @ref="textareaRef"
                           @bind="inputText"
                           @bind:event="oninput"
                           @onkeydown="HandleKeyDown"
                           rows="1"
                           disabled="@isLoading"></textarea>
+
                 <button class="send-btn @(CanSend ? "active" : "")"
                         @onclick="SendMessage"
                         disabled="@(!CanSend)"
@@ -147,6 +208,7 @@
                     </svg>
                 </button>
             </div>
+
             <p class="input-hint">GUA can make mistakes. Double-check important info.</p>
         </div>
     </main>

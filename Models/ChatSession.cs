@@ -14,20 +14,22 @@ public class ChatSession
         _service = service;
     }
 
-    public Task<ChatMessage> AddMessageToSession(string message, bool isUser)
+    public Task<ChatMessage> AddMessageToSession(string message, bool isUser, List<string>? attachments = null)
     {
         var newMessage = new ChatMessage(message, isUser);
+        if (attachments?.Count > 0)
+            newMessage.AttachmentPaths = attachments;
         Messages.Add(newMessage);
         return Task.FromResult(newMessage);
-    }
-
-    public void SendMessage(string message, Action<string> onResponse)
-    {
-        _service.SendMessage(message, onResponse);
     }
 
     public void SendMessageWithTool(string message, Action<string> onResponse)
     {
         _service.SendMessageWithTool(message, onResponse);
+    }
+
+    public void SendMessageWithImage(string message, List<string> imagesPath, Action<string> onResponse)
+    {
+        _service.SendMessageWithImage(message, imagesPath, onResponse);
     }
 }
