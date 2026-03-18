@@ -23,6 +23,14 @@
     --shadow: 0 2px 12px rgba(0,0,0,.4);
 }
 
+.toolcall-row {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 6px;
+}
+
 html, body {
     height: 100%;
     background: var(--bg);
@@ -1057,6 +1065,92 @@ html, body {
     object-fit: contain;
     border-radius: var(--radius);
     box-shadow: 0 8px 40px rgba(0,0,0,.6);
+}
+
+.chat-header {
+    /* update existing rule — add relative + gap */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(13,13,13,.8);
+    backdrop-filter: blur(8px);
+    position: relative;
+}
+
+.mode-toggle-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: absolute;
+    right: 20px;
+}
+
+.mode-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    transition: color .2s;
+    user-select: none;
+}
+
+    .mode-label.active {
+        color: var(--accent);
+    }
+
+.mode-toggle {
+    position: relative;
+    width: 48px;
+    height: 26px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    cursor: pointer;
+    padding: 0;
+    transition: background .25s, border-color .25s;
+}
+
+    .mode-toggle.agent {
+        background: var(--accent-dim);
+        border-color: rgba(212,168,83,.4);
+    }
+
+.mode-toggle-thumb {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform .25s cubic-bezier(.4,0,.2,1), background .25s;
+}
+
+.mode-toggle.agent .mode-toggle-thumb {
+    transform: translateX(22px);
+    background: var(--accent);
+}
+
+.mode-toggle-thumb svg {
+    width: 10px;
+    height: 10px;
+    stroke: #000;
+}
+
+@media (max-width: 768px) {
+    .mode-toggle-wrapper {
+        position: static;
+    }
+
+    .chat-header {
+        justify-content: space-between;
+    }
 }
 
 @media (max-width: 480px) {

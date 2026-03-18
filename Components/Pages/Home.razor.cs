@@ -15,8 +15,10 @@ public partial class Home
 
     private Guid activeSessionId = Guid.NewGuid();
     private bool isLoading = false;
+    private bool isStreaming = false;
     private ChatSession activeSession => GetActiveChatSession();
     private SessionFactory chatSessionFactory = null!;
+    private ChatMessage? currentMessage = null;
 
     private List<IBrowserFile> uploadedFiles = [];
     private List<string> uploadedPaths = [];
@@ -26,6 +28,8 @@ public partial class Home
 
     private ElementReference textareaRef;
     private string _inputText = string.Empty;
+
+    private bool isAgentMode = false;
 
     public Home(SessionFactory _factory)
     {
@@ -51,7 +55,7 @@ public partial class Home
     private void ClosePreview() => previewImageUrl = null;
 
     private bool CanSend =>
-        !isLoading && !string.IsNullOrWhiteSpace(inputText);
+        !isLoading && !string.IsNullOrWhiteSpace(inputText) && !isStreaming;
 
     private async Task SendMessage()
     {
@@ -65,29 +69,54 @@ public partial class Home
         uploadedPaths.Clear();
 
         await activeSession.AddMessageToSession(text, true, paths);
+
         isLoading = true;
+        isStreaming = true;
         StateHasChanged();
 
         var message = await activeSession.AddMessageToSession("", false);
 
-        if (paths.Count > 0)
+        if (isAgentMode)
         {
-            activeSession.SendMessageWithImage(text, paths, chunk =>
+            ChatMessage? currentAgentMessage = null;
+            await activeSession.SendMessageAgent(text, paths, async chunk =>
             {
-                message.Content += chunk;
-                StateHasChanged();
+                await InvokeAsync(() =>
+                {
+                    isLoading = false;
+
+                    if (chunk == "//NEW_TURN//")
+                    {
+                        currentAgentMessage = null;
+                        return;
+                    }
+
+                    if (currentAgentMessage == null)
+                    {
+                        currentAgentMessage = new ChatMessage("", false);
+                        activeSession.Messages.Add(currentAgentMessage);
+                    }
+
+                    currentAgentMessage.Content += chunk;
+                    StateHasChanged();
+                });
             });
         }
         else
         {
-            activeSession.SendMessageWithTool(text, chunk =>
+            await activeSession.SendMessageWithImage(text, paths, async chunk =>
             {
-                message.Content += chunk;
-                StateHasChanged();
+                await InvokeAsync(() =>
+                {
+                    isLoading = false;
+                    message.Content += chunk;
+                    StateHasChanged();
+                });
             });
         }
 
         isLoading = false;
+        isStreaming = false;
         StateHasChanged();
     }
 
@@ -208,7 +237,7 @@ public partial class Home
             }
             catch (Exception ex)
             {
-
+                Console.WriteLine(ex.Message);
             }
         }
     }
@@ -250,5 +279,30 @@ public partial class Home
     private async Task AutoResize()
     {
         await JS.InvokeVoidAsync("autoResizeTextarea", textareaRef);
+    }
+
+    private List<(ChatMessage Primary, List<ChatMessage> ToolOnlyFollowers)> GroupMessages()
+    {
+        var groups = new List<(ChatMessage, List<ChatMessage>)>();
+
+        foreach (var msg in activeSession.Messages)
+        {
+            if (string.IsNullOrWhiteSpace(msg.Content)) continue;
+
+            bool isToolOnly = !msg.IsUser
+                && HasToolcall(msg.Content)
+                && string.IsNullOrWhiteSpace(StripToolcall(msg.Content));
+
+            if (isToolOnly && groups.Count > 0)
+            {
+                groups[^1].Item2.Add(msg);
+            }
+            else
+            {
+                groups.Add((msg, new List<ChatMessage>()));
+            }
+        }
+
+        return groups;
     }
 }

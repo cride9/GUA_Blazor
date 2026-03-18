@@ -1,8 +1,6 @@
-﻿using LlmTornado.ChatFunctions;
-using LlmTornado.Common;
+﻿using LlmTornado.Common;
 using System.Security;
 using System.Text;
-using System.Text.Json;
 
 namespace GUA_Blazor.Tools.Filesystem;
 
@@ -15,7 +13,7 @@ public class CreateFile : AITool<CreateFileArguments>
             "ai_files_temp"
         );
 
-        string relativePath = args.Path.TrimStart('/', '\\');
+        string relativePath = args.Path!.TrimStart('/', '\\');
         if (relativePath.StartsWith("..") || relativePath.Contains(".."))
         {
             throw new SecurityException("Path traversal attempt detected!");
@@ -28,17 +26,17 @@ public class CreateFile : AITool<CreateFileArguments>
             throw new SecurityException("Access denied: Path outside sandbox!");
         }
 
-        string filePath = Path.Combine(fullPath, args.Filename);
+        string filePath = Path.Combine(fullPath, args.Filename!);
         if (File.Exists(filePath))
         {
-            string baseName = Path.GetFileNameWithoutExtension(args.Filename);
-            string ext = Path.GetExtension(args.Filename);
+            string baseName = Path.GetFileNameWithoutExtension(args.Filename!);
+            string ext = Path.GetExtension(args.Filename!);
             string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
             filePath = Path.Combine(fullPath, $"{baseName}_{timestamp}{ext}");
         }
 
-        string directory = Path.GetDirectoryName(filePath);
-        Directory.CreateDirectory(directory);
+        string directory = Path.GetDirectoryName(filePath)!;
+        Directory.CreateDirectory(directory!);
 
         try
         {
@@ -73,7 +71,7 @@ public class CreateFile : AITool<CreateFileArguments>
 
 public class CreateFileArguments
 {
-    public string Path { get; set; }
-    public string Filename { get; set; }
-    public string Content { get; set; }
+    public string? Path { get; set; }
+    public string? Filename { get; set; }
+    public string? Content { get; set; }
 }

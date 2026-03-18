@@ -1,4 +1,5 @@
 ﻿@page "/"
+@using GUA_Blazor.Models
 @rendermode InteractiveServer
 @inject IJSRuntime JS
 @inject IWebHostEnvironment Environment
@@ -33,6 +34,39 @@
     <main class="chat-main">
         <header class="chat-header">
             <span class="model-badge">GUA Companion</span>
+    
+            <div class="mode-toggle-wrapper">
+                <span class="mode-label @(!isAgentMode ? "active" : "")">Chat</span>
+        
+                <button class="mode-toggle @(isAgentMode ? "agent" : "")"
+                        @onclick="() => isAgentMode = !isAgentMode"
+                        title="@(isAgentMode ? "Switch to Chat" : "Switch to Agent")">
+                    <div class="mode-toggle-thumb">
+                        @if (isAgentMode)
+                        {
+                            <!-- Agent icon: cpu/chip -->
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor" stroke-width="2"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <rect x="9" y="9" width="6" height="6" />
+                                <path d="M9 2v3M15 2v3M9 19v3M15 19v3M2 9h3M2 15h3M19 9h3M19 15h3" />
+                                <rect x="4" y="4" width="16" height="16" rx="2" />
+                            </svg>
+                        }
+                        else
+                        {
+                            <!-- Chat icon: message bubble -->
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                 fill="none" stroke="currentColor" stroke-width="2"
+                                 stroke-linecap="round" stroke-linejoin="round">
+                                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                            </svg>
+                        }
+                    </div>
+                </button>
+        
+                <span class="mode-label @(isAgentMode ? "active" : "")">Agent</span>
+            </div>
         </header>
 
         <div class="messages-area" id="messagesArea">
@@ -48,11 +82,15 @@
             @if (chatHistory.ContainsKey(activeSessionId))
             {
                 var messageIndex = 0;
-                
-                @foreach (var msg in activeSession.Messages)
+                var groups = GroupMessages();
+
+                @foreach (var (msg, toolFollowers) in groups)
                 {
-                    var hasToolcall = !msg.IsUser && HasToolcall(msg.Content);
-                    var cleanContent = hasToolcall ? StripToolcall(msg.Content) : msg.Content;
+                    var allToolcallMessages = new List<ChatMessage>();
+                    if (HasToolcall(msg.Content)) allToolcallMessages.Add(msg);
+                    allToolcallMessages.AddRange(toolFollowers);
+
+                    var cleanContent = StripToolcall(msg.Content);
 
                     <div class="message @(msg.IsUser ? "user-msg" : "ai-msg")">
                         @if (!msg.IsUser)
@@ -63,11 +101,14 @@
                         {
                             <div class="avatar user-avatar">U</div>
                         }
-        
+
                         <div class="message-content-wrapper">
-                            <div class="bubble @(msg.IsUser ? "user-bubble" : "ai-bubble") markdown-body">
-                                @((MarkupString)RenderMarkdown(cleanContent))
-                            </div>
+                            @if (!string.IsNullOrWhiteSpace(cleanContent))
+                            {
+                                <div class="bubble @(msg.IsUser ? "user-bubble" : "ai-bubble") markdown-body">
+                                    @((MarkupString)RenderMarkdown(cleanContent))
+                                </div>
+                            }
 
                             @if (msg.AttachmentPaths.Any())
                             {
@@ -84,50 +125,58 @@
                                 </div>
                             }
 
-                            @if (hasToolcall)
+                            @if (allToolcallMessages.Any())
                             {
-                                var capturedIndex = messageIndex;
-                                <div class="toolcall-container">
-                                    <button class="toolcall-toggle" @onclick="() => ToggleToolcall(capturedIndex)">
-                                        <svg class="toolcall-gear-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                             fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                            <circle cx="12" cy="12" r="3" />
-                                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06
-                                            a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09
-                                            A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83
-                                            l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09
-                                            A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83
-                                            l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09
-                                            a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83
-                                            l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09
-                                            a1.65 1.65 0 0 0-1.51 1z" />
-                                        </svg>
-                                        <span class="toolcall-label">Toolcall</span>
-                                        <svg class="toolcall-arrow @(expandedToolcalls.Contains(capturedIndex) ? "expanded" : "")"
-                                             xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-                                             fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                                            <polyline points="6 9 12 15 18 9" />
-                                        </svg>
-                                    </button>
-                    
-                                    @if (expandedToolcalls.Contains(capturedIndex))
+                                <div class="toolcall-row">
+                                    @foreach (var tcMsg in allToolcallMessages)
                                     {
-                                        <div class="toolcall-dropdown">
-                                            <div class="toolcall-header">
-                                                <span>Tool Execution Details</span>
-                                                <button class="toolcall-copy" @onclick="() => CopyToClipboard(ExtractToolcallJson(msg.Content))">
-                                                    📋 Copy
-                                                </button>
-                                            </div>
-                                            <pre class="toolcall-json"><code>@ExtractToolcallJson(msg.Content)</code></pre>
+                                        var capturedIndex = messageIndex++;
+                                        <div class="toolcall-container">
+                                            <button class="toolcall-toggle" @onclick="() => ToggleToolcall(capturedIndex)">
+                                                <svg class="toolcall-gear-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                                    <circle cx="12" cy="12" r="3" />
+                                                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06
+                                                    a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09
+                                                    A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83
+                                                    l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09
+                                                    A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83
+                                                    l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09
+                                                    a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83
+                                                    l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09
+                                                    a1.65 1.65 0 0 0-1.51 1z" />
+                                                </svg>
+                                                <span class="toolcall-label">Toolcall</span>
+                                                <svg class="toolcall-arrow @(expandedToolcalls.Contains(capturedIndex) ? "expanded" : "")"
+                                                     xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                                                     fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                                                    <polyline points="6 9 12 15 18 9" />
+                                                </svg>
+                                            </button>
+
+                                            @if (expandedToolcalls.Contains(capturedIndex))
+                                            {
+                                                <div class="toolcall-dropdown">
+                                                    <div class="toolcall-header">
+                                                        <span>Tool Execution Details</span>
+                                                        <button class="toolcall-copy" @onclick="() => CopyToClipboard(ExtractToolcallJson(tcMsg.Content))">
+                                                            📋 Copy
+                                                        </button>
+                                                    </div>
+                                                    <pre class="toolcall-json"><code>@ExtractToolcallJson(tcMsg.Content)</code></pre>
+                                                </div>
+                                            }
                                         </div>
                                     }
                                 </div>
                             }
+
+                            @if (!allToolcallMessages.Any())
+                            {
+                                messageIndex++;
+                            }
                         </div>
                     </div>
-    
-                    messageIndex++;
                 }
 
                 @if (previewImageUrl is not null)

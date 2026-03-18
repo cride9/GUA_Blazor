@@ -23,13 +23,13 @@ public class ChatSession
         return Task.FromResult(newMessage);
     }
 
-    public void SendMessageWithTool(string message, Action<string> onResponse)
+    public Task SendMessageWithImage(string message, List<string> imagesPath, Action<string> onResponse)
     {
-        _service.SendMessageWithTool(message, onResponse);
+        return _service.SendMessageWithImage(message, imagesPath, onResponse);
     }
 
-    public void SendMessageWithImage(string message, List<string> imagesPath, Action<string> onResponse)
+    public Task SendMessageAgent(string message, List<string> imagesPath, Action<string> onResponse)
     {
-        _service.SendMessageWithImage(message, imagesPath, onResponse);
+        return _service.SendMessageAgent(message, imagesPath, onResponse);
     }
 }
