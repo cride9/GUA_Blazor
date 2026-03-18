@@ -1,12 +1,10 @@
 ﻿using GUA_Blazor.Models;
-using GUA_Blazor.Service;
 using Markdig;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
 using Microsoft.JSInterop;
 using System.Text.Json;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace GUA_Blazor.Components.Pages;
 

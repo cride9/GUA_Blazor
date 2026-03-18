@@ -1,4 +1,6 @@
 ﻿using GUA_Blazor.Models;
+using GUA_Blazor.Tools;
+using GUA_Blazor.Tools.Filesystem;
 using LlmTornado;
 using LlmTornado.Chat;
 using LlmTornado.ChatFunctions;
@@ -11,57 +13,31 @@ namespace GUA_Blazor.Service;
 public class AIService
 {
     private TornadoApi _api; 
-    private Conversation _conversation; 
+    private Conversation _conversation;
+
+    private readonly Dictionary<string, IAITool> _tools = new()
+    {
+        ["create_file"] = new CreateFile(),
+    };
 
     public AIService()
     {
         _api = new TornadoApi(new Uri("http://127.0.0.1:8080"));
         _conversation = _api.Chat.CreateConversation(new ChatRequest()
         {
-            Tools = [
-                new Tool(new ToolFunction("get_weather", "gets the current weather", new
-                {
-                    type = "object",
-                    properties = new
-                    {
-                        location = new
-                        {
-                            type = "string",
-                            description = "The location for which the weather information is required."
-                        }
-                    },
-                    required = new List<string> { "location" }
-                }))
-            ],
+            Tools = _tools
+                .Select(t => new Tool(t.Value.GetToolFunction()))
+                .ToList(),
             Messages = [
                 new LlmTornado.Chat.ChatMessage(ChatMessageRoles.System, Instructions.BasicInstruction)
             ],
             InvokeClrToolsAutomatically = false,
-            ToolChoice = OutboundToolChoice.None,
-            ParallelToolCalls = true
+            ToolChoice = OutboundToolChoice.Auto,
         });
     }
 
     public void SendMessageWithImage(string message, List<string> imagesPath, Action<string> onResponse)
     {
-        ChatStreamEventHandler handler = new()
-        {
-            MessageTokenHandler = async (x) =>
-            {
-                onResponse?.Invoke(x!);
-                return;
-            },
-            FunctionCallHandler = async (calls) =>
-            {
-                ResolveFunctions(calls, onResponse);
-                return;
-            },
-            AfterFunctionCallsResolvedHandler = async (results, currentHandler) =>
-            {
-                await _conversation.StreamResponseRich(currentHandler);
-            }
-        };
-
         ChatMessagePart[] parts = new ChatMessagePart[imagesPath.Count + 1];
         parts[0] = new ChatMessagePart(message);
 
@@ -83,44 +59,53 @@ public class AIService
         }
 
         var messageImage = new LlmTornado.Chat.ChatMessage(ChatMessageRoles.User, parts);
-        _conversation.AppendMessage(messageImage).StreamResponseRich(handler);
+        _conversation.AppendMessage(messageImage).StreamResponseRich(CreateHandler(onResponse));
     }
 
     public void SendMessageWithTool(string message, Action<string> onResponse)
     {
-        ChatStreamEventHandler handler = new()
-        {
-            MessageTokenHandler = async (x) =>
-            {
-                onResponse?.Invoke(x!);
-                return;
-            },
-            FunctionCallHandler = async (calls) =>
-            {
-                ResolveFunctions(calls, onResponse);
-                return;
-            },
-            AfterFunctionCallsResolvedHandler = async (results, currentHandler) =>
-            {
-                await _conversation.StreamResponseRich(currentHandler);
-            }
-        };
+        _conversation.AppendUserInput(message).StreamResponseRich(CreateHandler(onResponse));
+    }
 
-        _conversation.AppendUserInput(message).StreamResponseRich(handler);
+    public void SendMessageAgent(string message, Action<string> onResponse)
+    {
+
     }
 
     private void ResolveFunctions(List<FunctionCall> calls, Action<string> onResponse)
     {
         foreach (var call in calls)
         {
-            onResponse?.Invoke($"//TOOLCALL\n{call?.ToolCall?.GetJson()}\n//TOOLCALL_END");
-            switch (call.Name)
+            onResponse?.Invoke($"//TOOLCALL\n{call?.ToolCall?.FunctionCall?.GetJson()}\n//TOOLCALL_END");
+
+            if (_tools.TryGetValue(call.Name, out var tool))
             {
-                case "get_weather":
-                    call.Result = new FunctionResult(call, "A mild rain is expected around noon.", null); break;
-                default:
-                    call.Result = new FunctionResult(call, "Function not found", null); break;
+                var result = tool.ExecuteFunction(call);
+                call.Result = new FunctionResult(call, result, null);
+            }
+            else
+            {
+                call.Result = new FunctionResult(call, "Function not found", null);
             }
         }
+    }
+
+    private ChatStreamEventHandler CreateHandler(Action<string> onResponse)
+    {
+        return new ChatStreamEventHandler
+        {
+            MessageTokenHandler = async (x) =>
+            {
+                onResponse?.Invoke(x!);
+            },
+            FunctionCallHandler = async (calls) =>
+            {
+                ResolveFunctions(calls, onResponse);
+            },
+            AfterFunctionCallsResolvedHandler = async (results, currentHandler) =>
+            {
+                await _conversation.StreamResponseRich(currentHandler);
+            }
+        };
     }
 }
