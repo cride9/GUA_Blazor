@@ -1,5 +1,6 @@
 using GUA_Blazor.Components;
 using GUA_Blazor.Models;
+using GUA_Blazor.Tools.Terminal;
 
 var builder = WebApplication.CreateBuilder(args);
 

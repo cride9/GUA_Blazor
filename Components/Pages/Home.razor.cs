@@ -305,4 +305,19 @@ public partial class Home
 
         return groups;
     }
+
+    private static string GetFileIcon(string ext) => ext switch
+    {
+        ".pdf" => "📄",
+        ".txt" or ".md" or ".log" => "📝",
+        ".csv" => "📊",
+        ".json" or ".xml" or ".yaml"
+            or ".yml" => "🗂️",
+        ".cs" or ".py" or ".js" or ".ts"
+            or ".java" or ".cpp"
+            or ".c" or ".h" => "💻",
+        ".html" or ".htm" or ".css" => "🌐",
+        ".sql" => "🗃️",
+        _ => "📎",
+    };
 }

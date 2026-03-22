@@ -115,12 +115,25 @@
                                 <div class="attachment-row">
                                     @foreach (var path in msg.AttachmentPaths)
                                     {
-                                        <div class="attachment-thumb-wrapper">
-                                            <img class="attachment-thumb"
-                                                 src="@GetImageDataUrl(path)"
-                                                 alt="attachment"
-                                                 @onclick="() => OpenImagePreview(path)" />
-                                        </div>
+                                        var ext = Path.GetExtension(path).ToLowerInvariant();
+                                        var isImage = ext is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp";
+
+                                        @if (isImage)
+                                        {
+                                            <div class="attachment-thumb-wrapper">
+                                                <img class="attachment-thumb"
+                                                     src="@GetImageDataUrl(path)"
+                                                     alt="attachment"
+                                                     @onclick="() => OpenImagePreview(path)" />
+                                            </div>
+                                        }
+                                        else
+                                        {
+                                            <div class="attachment-file-chip">
+                                                <span class="attachment-file-icon">@GetFileIcon(ext)</span>
+                                                <span class="attachment-file-name">@Path.GetFileName(path)</span>
+                                            </div>
+                                        }
                                     }
                                 </div>
                             }
