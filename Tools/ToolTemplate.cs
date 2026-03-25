@@ -4,24 +4,19 @@ using System.Text.Json;
 
 namespace GUA_Blazor.Tools;
 
-public abstract class AITool<TArgs> : IAITool
+public abstract class AITool<T> : IAITool
 {
-    protected static readonly JsonSerializerOptions Options = new()
+    public Task<string> ExecuteFunctionAsync(FunctionCall fn)
     {
-        PropertyNameCaseInsensitive = true
-    };
-
-    public string ExecuteFunction(FunctionCall fn)
-    {
-        var args = JsonSerializer.Deserialize<TArgs>(fn?.ToolCall?.FunctionCall?.Arguments!, Options);
-
-        if (args == null)
-            return "Invalid arguments";
-
-        return Execute(args);
+        var args = JsonSerializer.Deserialize<T>(fn.Arguments!);
+        return ExecuteAsync(args!);
     }
 
-    protected abstract string Execute(TArgs args);
+    protected virtual Task<string> ExecuteAsync(T args)
+        => Task.Run(() => Execute(args));
+
+    protected virtual string Execute(T args)
+        => throw new NotImplementedException();
 
     public abstract ToolFunction GetToolFunction();
 }

@@ -1,6 +1,7 @@
 ﻿using LlmTornado.Common;
 using System.Diagnostics;
 using System.Security;
+using System.Text.Json.Serialization;
 
 namespace GUA_Blazor.Tools.Terminal;
 
@@ -146,7 +147,10 @@ public class RunCommand : AITool<RunCommandArguments>
 
 public class RunCommandArguments
 {
+    [JsonPropertyName("command")]
     public string? Command { get; set; }
+    [JsonPropertyName("session_id")]
     public string? SessionId { get; set; }
+    [JsonPropertyName("working_directory")]
     public string? WorkingDirectory { get; set; }
 }

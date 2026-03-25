@@ -1,6 +1,7 @@
 ﻿using LlmTornado.Common;
 using System.Security;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace GUA_Blazor.Tools.Filesystem;
 
@@ -136,9 +137,14 @@ public class EditFile : AITool<EditFileArguments>
 
 public class EditFileArguments
 {
+    [JsonPropertyName("path")]
     public string? Path { get; set; }
+    [JsonPropertyName("old_str")]
     public string? OldStr { get; set; }
+    [JsonPropertyName("new_str")]
     public string? NewStr { get; set; }
+    [JsonPropertyName("dry_run")]
     public bool? DryRun { get; set; }
+    [JsonPropertyName("backup")]
     public bool? Backup { get; set; }
 }

@@ -22,8 +22,8 @@ public partial class Home
 
     private List<IBrowserFile> uploadedFiles = [];
     private List<string> uploadedPaths = [];
-    private long maxFileSize = 1024 * 1024 * 10;
-    private int maxAllowedFiles = 5;
+    private long maxFileSize = 1024 * 1024 * 500;
+    private int maxAllowedFiles = 10;
     private string? previewImageUrl;
 
     private ElementReference textareaRef;
@@ -311,13 +311,15 @@ public partial class Home
         ".pdf" => "📄",
         ".txt" or ".md" or ".log" => "📝",
         ".csv" => "📊",
-        ".json" or ".xml" or ".yaml"
-            or ".yml" => "🗂️",
+        ".json" or ".xml" or ".yaml" or ".yml" => "🗂️",
         ".cs" or ".py" or ".js" or ".ts"
-            or ".java" or ".cpp"
-            or ".c" or ".h" => "💻",
+            or ".java" or ".cpp" or ".c" or ".h" => "💻",
         ".html" or ".htm" or ".css" => "🌐",
         ".sql" => "🗃️",
+        ".mp4" or ".mkv" or ".avi" or ".mov"
+            or ".webm" => "🎬",
+        ".mp3" or ".wav" or ".ogg" or ".flac"
+            or ".m4a" => "🎵",
         _ => "📎",
     };
 }

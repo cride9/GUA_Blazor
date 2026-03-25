@@ -1,5 +1,6 @@
 ﻿using LlmTornado.Common;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace GUA_Blazor.Tools.Terminal;
 
@@ -53,7 +54,10 @@ public class ReadTerminalOutput : AITool<ReadTerminalOutputArguments>
 
 public class ReadTerminalOutputArguments
 {
+    [JsonPropertyName("session_id")]
     public string? SessionId { get; set; }
+    [JsonPropertyName("lines")]
     public int? Lines { get; set; }
+    [JsonPropertyName("clear")]
     public bool? Clear { get; set; }
 }

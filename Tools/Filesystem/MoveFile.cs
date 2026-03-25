@@ -1,4 +1,5 @@
 ﻿using LlmTornado.Common;
+using System.Text.Json.Serialization;
 
 namespace GUA_Blazor.Tools.Filesystem;
 
@@ -80,5 +81,6 @@ public class MoveFileArguments
     public string? Source { get; set; }
     public string? Destination { get; set; }
     public bool? Overwrite { get; set; }
+    [JsonPropertyName("dry_run")]
     public bool? DryRun { get; set; }
 }

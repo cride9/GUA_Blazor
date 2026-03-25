@@ -1,5 +1,6 @@
 ﻿using LlmTornado.Common;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace GUA_Blazor.Tools.Filesystem;
 
@@ -65,6 +66,8 @@ public class ReadFile : AITool<ReadFileArguments>
 public class ReadFileArguments
 {
     public string? Path { get; set; }
+    [JsonPropertyName("from_line")]
     public int? FromLine { get; set; }
+    [JsonPropertyName("to_line")]
     public int? ToLine { get; set; }
 }

@@ -1,4 +1,5 @@
 ﻿using LlmTornado.Common;
+using System.Text.Json.Serialization;
 
 namespace GUA_Blazor.Tools.Filesystem;
 
@@ -63,7 +64,10 @@ public class DeleteFile : AITool<DeleteFileArguments>
 
 public class DeleteFileArguments
 {
+    [JsonPropertyName("path")]
     public string? Path { get; set; }
+    [JsonPropertyName("recursive")]
     public bool? Recursive { get; set; }
+    [JsonPropertyName("dry_run")]
     public bool? DryRun { get; set; }
 }

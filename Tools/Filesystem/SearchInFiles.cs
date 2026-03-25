@@ -1,5 +1,6 @@
 ﻿using LlmTornado.Common;
 using System.Text;
+using System.Text.Json.Serialization;
 
 namespace GUA_Blazor.Tools.Filesystem;
 
@@ -141,10 +142,16 @@ public class SearchInFiles : AITool<SearchInFilesArguments>
 
 public class SearchInFilesArguments
 {
+    [JsonPropertyName("pattern")]
     public string? Pattern { get; set; }
+    [JsonPropertyName("path")]
     public string? Path { get; set; }
+    [JsonPropertyName("file_pattern")]
     public string? FilePattern { get; set; }
+    [JsonPropertyName("ignore_case")]
     public bool? IgnoreCase { get; set; }
+    [JsonPropertyName("regex")]
     public bool? Regex { get; set; }
+    [JsonPropertyName("max_results")]
     public int? MaxResults { get; set; }
 }

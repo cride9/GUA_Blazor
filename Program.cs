@@ -1,6 +1,6 @@
 using GUA_Blazor.Components;
 using GUA_Blazor.Models;
-using GUA_Blazor.Tools.Terminal;
+using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -11,6 +11,13 @@ builder.Services.AddRazorComponents()
 builder.Services.AddScoped<SessionFactory>();
 
 var app = builder.Build();
+
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(builder.Environment.ContentRootPath, "ai_files_temp")),
+    RequestPath = "/ai_files"
+});
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())

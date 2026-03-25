@@ -2,6 +2,7 @@
 using GUA_Blazor.Tools;
 using GUA_Blazor.Tools.Filesystem;
 using GUA_Blazor.Tools.Terminal;
+using GUA_Blazor.Tools.WhisperTools;
 using LlmTornado;
 using LlmTornado.Chat;
 using LlmTornado.ChatFunctions;
@@ -31,9 +32,19 @@ public class AIService
         ".java", ".cpp", ".c", ".h", ".sql", ".log", ".ini", ".config"
     };
 
+    private static readonly HashSet<string> VideoExtensions = new()
+    {
+        ".mp4", ".mkv", ".avi", ".mov", ".webm"
+    };
+
+    private static readonly HashSet<string> AudioExtensions = new()
+    {
+        ".mp3", ".wav", ".ogg", ".flac", ".m4a"
+    };
+
     public AIService()
     {
-        _api = new TornadoApi(new Uri("http://26.86.240.240:8080"));
+        _api = new TornadoApi(new Uri("http://localhost:8080"));
         _conversation = _api.Chat.CreateConversation(new ChatRequest()
         {
             Messages = [
@@ -57,6 +68,9 @@ public class AIService
             ["run_command"] = new RunCommand(_sessionStore),
             ["read_terminal_output"] = new ReadTerminalOutput(_sessionStore),
             ["stop_loop"] = new StopTool(),
+            ["extract_audio"] = new ExtractAudio(),
+            ["transcribe_audio"] = new TranscribeAudio(),
+            ["burn_subtitles"] = new BurnSubtitles(),
         };
     }
 
@@ -170,7 +184,7 @@ public class AIService
 
             if (_tools.TryGetValue(call!.Name, out var tool))
             {
-                var result = tool.ExecuteFunction(call);
+                var result = await tool.ExecuteFunctionAsync(call);
                 call.Result = new FunctionResult(call, result, null);
             }
             else
@@ -182,14 +196,12 @@ public class AIService
 
     private ChatMessagePart[] ResolveImages(List<string> filePaths)
     {
-        var parts = new List<ChatMessagePart>
-        {
-            null!
-        };
+        var parts = new List<ChatMessagePart> { null! };
 
         foreach (var filePath in filePaths)
         {
             var ext = Path.GetExtension(filePath).ToLowerInvariant();
+            var fileName = Path.GetFileName(filePath);
 
             if (ImageExtensions.Contains(ext))
             {
@@ -201,7 +213,6 @@ public class AIService
                     ".webp" => "image/webp",
                     _ => "image/jpeg"
                 };
-
                 byte[] bytes = File.ReadAllBytes(filePath);
                 string dataUrl = $"data:{mimeType};base64,{Convert.ToBase64String(bytes)}";
                 parts.Add(new ChatMessagePart(dataUrl, ImageDetail.High));
@@ -209,21 +220,27 @@ public class AIService
             else if (TextExtensions.Contains(ext))
             {
                 var content = File.ReadAllText(filePath);
-                var fileName = Path.GetFileName(filePath);
                 parts.Add(new ChatMessagePart(
                     $"[Attached file: {fileName}]\n```\n{content}\n```"));
             }
             else if (ext == ".pdf")
             {
-                var fileName = Path.GetFileName(filePath);
                 var text = ExtractPdfText(filePath);
+                parts.Add(new ChatMessagePart($"[Attached PDF: {fileName}]\n{text}"));
+            }
+            else if (VideoExtensions.Contains(ext) || AudioExtensions.Contains(ext))
+            {
+                // Tell the agent the file exists and its path so it can call extract_audio / transcribe_audio
                 parts.Add(new ChatMessagePart(
-                    $"[Attached PDF: {fileName}]\n{text}"));
+                    $"[Attached {(VideoExtensions.Contains(ext) ? "video" : "audio")} file: {fileName}]\n" +
+                    $"Full path: {filePath}\n" +
+                    $"You can transcribe this using extract_audio (if video) then transcribe_audio, " +
+                    $"and burn subtitles with burn_subtitles."));
             }
             else
             {
                 parts.Add(new ChatMessagePart(
-                    $"[Attached file: {Path.GetFileName(filePath)} — binary format, content not available]"));
+                    $"[Attached file: {fileName} — binary format, content not available]"));
             }
         }
 

@@ -1,4 +1,5 @@
 ﻿using LlmTornado.Common;
+using System.Text.Json.Serialization;
 
 namespace GUA_Blazor.Tools.Filesystem;
 
@@ -78,8 +79,12 @@ public class RenameFile : AITool<RenameFileArguments>
 
 public class RenameFileArguments
 {
+    [JsonPropertyName("path")]
     public string? Path { get; set; }
+    [JsonPropertyName("new_name")]
     public string? NewName { get; set; }
+    [JsonPropertyName("overwrite")]
     public bool? Overwrite { get; set; }
+    [JsonPropertyName("dry_run")]
     public bool? DryRun { get; set; }
 }
