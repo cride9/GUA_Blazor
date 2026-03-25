@@ -1,0 +1,3 @@
+[submodule "Kokoro"]
+	path = Kokoro
+	url = https://github.com/cride9/kokoro_fork.git
