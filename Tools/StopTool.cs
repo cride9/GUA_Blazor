@@ -1,4 +1,5 @@
 ﻿using LlmTornado.Common;
+using System.Text.Json.Serialization;
 
 namespace GUA_Blazor.Tools;
 
@@ -26,5 +27,6 @@ public class StopTool : AITool<StopToolArgs>
 
 public class StopToolArgs
 {
+    [JsonPropertyName("stoploop")]
     public string StopLoop { get; set; } = "false";
 }

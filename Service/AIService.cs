@@ -98,56 +98,41 @@ public class AIService
 
     public async Task SendMessageAgent(string message, List<string> imagesPath, Action<string> onResponse)
     {
-        int maxTurns = 50;
+        const int MaxTurns = 50;
 
-        ChatMessagePart[] parts = ResolveImages(imagesPath);
+        var parts = ResolveImages(imagesPath);
         parts[0] = new ChatMessagePart(message);
 
-        List<LlmTornado.Chat.ChatMessage> messages = new();
-        messages.Add(new(ChatMessageRoles.System, Instructions.AgentInstruction));
-        messages.AddRange(
-            _conversation.Messages
-                .Where(m => m.Role != ChatMessageRoles.System && m.Name != "stop_loop")
-        );
+        var messages = new List<LlmTornado.Chat.ChatMessage>
+        {
+            new(ChatMessageRoles.System, Instructions.AgentInstruction)
+        };
+        messages.AddRange(_conversation.Messages
+            .Where(m => m.Role != ChatMessageRoles.System && m.Name != "stop_loop"));
         messages.Add(new(ChatMessageRoles.User, parts));
 
-        _conversation = _api.Chat.CreateConversation(new ChatRequest()
+        _conversation = _api.Chat.CreateConversation(new ChatRequest
         {
-            Tools = _tools.Select(t => new Tool(t.Value.GetToolFunction())).ToList(),
+            Tools = _tools.Values.Select(t => new Tool(t.GetToolFunction())).ToList(),
             Messages = messages,
             InvokeClrToolsAutomatically = false,
             ToolChoice = OutboundToolChoice.Auto,
         });
 
-        var currentConversation = _conversation;
         var stopSignal = new StopSignal();
-        var handler = CreateHandler(onResponse, currentConversation, stopSignal);
+        var handler = CreateHandler(onResponse, _conversation, stopSignal);
 
-        await currentConversation.StreamResponseRich(handler);
-        onResponse("//NEW_TURN//");
-        maxTurns--;
-
-        while (maxTurns > 0 && !stopSignal.Stop)
+        for (int turn = 0; turn < MaxTurns && !stopSignal.Stop; turn++)
         {
-            var lastMessage = currentConversation.Messages.LastOrDefault();
-            bool isToolResult = lastMessage?.Role == ChatMessageRoles.Tool;
+            var lastMessage = _conversation.Messages.LastOrDefault();
+            bool needsPrompt = turn > 0 && lastMessage?.Role != ChatMessageRoles.Tool;
 
-            if (isToolResult)
-            {
-                await currentConversation.StreamResponseRich(handler);
-            }
-            else
-            {
-                await currentConversation
-                    .AppendUserInputWithName("agent_helper", "continue or stop with the tool")
-                    .StreamResponseRich(handler);
-            }
+            if (needsPrompt)
+                _conversation.AppendUserInputWithName("agent_helper", "continue or stop with the tool");
 
+            await _conversation.StreamResponseRich(handler);
             onResponse("//NEW_TURN//");
-            maxTurns--;
         }
-
-        _conversation = currentConversation;
     }
 
     private ChatStreamEventHandler CreateHandler(Action<string> onResponse, Conversation conversation, StopSignal stopSignal)
