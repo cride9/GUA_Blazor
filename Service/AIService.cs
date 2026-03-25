@@ -2,6 +2,7 @@
 using GUA_Blazor.Tools;
 using GUA_Blazor.Tools.Filesystem;
 using GUA_Blazor.Tools.Terminal;
+using GUA_Blazor.Tools.TTS;
 using GUA_Blazor.Tools.WhisperTools;
 using LlmTornado;
 using LlmTornado.Chat;
@@ -71,6 +72,9 @@ public class AIService
             ["extract_audio"] = new ExtractAudio(),
             ["transcribe_audio"] = new TranscribeAudio(),
             ["burn_subtitles"] = new BurnSubtitles(),
+            ["text_to_speech"] = new TextToSpeech(),
+            ["merge_audio"] = new MergeAudio(),
+            ["merge_audio_with_video"] = new MergeAudioWithVideo(),
         };
     }
 

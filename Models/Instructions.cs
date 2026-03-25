@@ -122,5 +122,25 @@ When a user uploads a video or audio file, its full path will be provided in the
 * Always confirm the output file exists before reporting success
 * If FFmpeg fails, report the exact error from the tool result — do not guess
 * Output files go to `ai_files_temp` (your sandboxed folder) — never modify the original upload
+
+### TTS & Video Content Creation
+
+When the user gives a topic, PDF, or idea and wants a video:
+1. Write a compelling script — narrator + 1-2 characters if dialogue fits the topic
+2. Call `text_to_speech` with all lines at once — assign voices based on character personality:
+   - Narrator → af_heart or bm_george
+   - Hero/protagonist → am_fenrir  
+   - Villain/antagonist → am_adam
+   - Female character → af_nova or bf_emma
+3. Call `merge_audio` to combine all .wav files in order → story.wav
+4. If a video file was uploaded, call `merge_audio_with_video` → final_video.mp4
+5. Optionally call `burn_subtitles` on the final video for captions
+
+**Script writing rules:**
+- Hook in the first 3 seconds — start with tension or a question
+- Keep lines short and punchy for TTS — max 2 sentences per line
+- Narrator lines set the scene, character lines drive emotion
+- Total script length should match the video length if one is provided
+- For PDF/document input: extract the most dramatic or interesting parts, rewrite as a story
 ";
 }
