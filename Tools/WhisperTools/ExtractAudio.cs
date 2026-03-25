@@ -14,17 +14,41 @@ public class ExtractAudio : AITool<ExtractAudioArguments>
         var audioPath = Path.Combine(outputDir,
             Path.GetFileNameWithoutExtension(args.VideoPath!) + ".mp3");
 
-        var proc = Process.Start(new ProcessStartInfo
+        using var proc = new Process();
+        proc.StartInfo = new ProcessStartInfo
         {
             FileName = "ffmpeg",
             Arguments = $"-i \"{args.VideoPath}\" -vn -ar 16000 -ac 1 -ab 64k \"{audioPath}\" -y",
             RedirectStandardError = true,
-            UseShellExecute = false
-        })!;
-        proc.WaitForExit();
+            UseShellExecute = false,
+            CreateNoWindow = true
+        };
 
-        if (!File.Exists(audioPath))
-            throw new Exception($"FFmpeg failed: {proc.StandardError.ReadToEnd()}");
+        proc.Start();
+
+        if (!proc.WaitForExit(60000))
+        {
+            try
+            {
+                proc.Kill();
+            }
+            catch
+            {
+
+            }
+
+            proc.WaitForExit();
+
+            if (File.Exists(audioPath))
+                File.Delete(audioPath);
+
+            throw new Exception("FFmpeg timed out: Process exceeded 1 minute limit and was force closed.");
+        }
+
+        var stderr = proc.StandardError.ReadToEnd();
+
+        if (proc.ExitCode != 0 || !File.Exists(audioPath))
+            throw new Exception($"FFmpeg failed (ExitCode {proc.ExitCode}): {stderr}");
 
         return $"Audio extracted: {audioPath}";
     }

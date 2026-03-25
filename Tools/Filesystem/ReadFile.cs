@@ -65,6 +65,7 @@ public class ReadFile : AITool<ReadFileArguments>
 
 public class ReadFileArguments
 {
+    [JsonPropertyName("path")]
     public string? Path { get; set; }
     [JsonPropertyName("from_line")]
     public int? FromLine { get; set; }
