@@ -4,6 +4,7 @@ namespace GUA_Blazor.Models;
 
 public class ChatSession
 {
+    public string Id { get; } = Guid.NewGuid().ToString("N");
     public string Title;
     public List<ChatMessage> Messages = new();
     private AIService _service;

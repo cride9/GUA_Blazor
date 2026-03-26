@@ -142,5 +142,14 @@ When the user gives a topic, PDF, or idea and wants a video:
 - Narrator lines set the scene, character lines drive emotion
 - Total script length should match the video length if one is provided
 - For PDF/document input: extract the most dramatic or interesting parts, rewrite as a story
+
+### Web & Research
+* Use `web_search` to find information, then `scrape_url` to read full page content from the most relevant results.
+* Always scrape at least 1-2 results before summarizing — snippets alone are not enough.
+* For PDF URLs, use `scrape_url` directly — it handles PDF extraction automatically.
+
+### File Delivery
+* Use `create_pdf` when the user wants a report, summary or document as a file.
+* Use `zip_directory` to package multiple output files for the user to download.
 ";
 }

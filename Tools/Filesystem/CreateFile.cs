@@ -1,4 +1,5 @@
-﻿using LlmTornado.Common;
+﻿using GUA_Blazor.Helper;
+using LlmTornado.Common;
 using System.Security;
 using System.Text;
 using System.Text.Json.Serialization;
@@ -7,69 +8,46 @@ namespace GUA_Blazor.Tools.Filesystem;
 
 public class CreateFile : AITool<CreateFileArguments>
 {
-    private static readonly string[] AllowedBases =
-    [
-        Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "ai_files_temp")),
-        Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "unsafe_uploads")),
-    ];
+    public CreateFile(string sessionId) : base(sessionId) { }
 
     protected override string Execute(CreateFileArguments args)
     {
         string filePath;
 
-        // if the model passes an absolute path, validate it directly
         if (Path.IsPathRooted(args.Path))
         {
             var fullPath = Path.GetFullPath(args.Path!);
-            if (!AllowedBases.Any(b => fullPath.StartsWith(b, StringComparison.OrdinalIgnoreCase)))
-                throw new SecurityException("Access denied: Path outside sandbox!");
+            if (!SessionSandbox.IsPathAllowed(fullPath, SessionId))
+                throw new SecurityException("Access denied: Path outside session sandbox!");
             filePath = fullPath;
         }
         else
         {
-            // original relative path logic
-            var basePath = AllowedBases[0]; // ai_files_temp
             var relativePath = args.Path!.TrimStart('/', '\\');
             if (relativePath.Contains(".."))
                 throw new SecurityException("Path traversal attempt detected!");
 
-            var fullPath = Path.GetFullPath(Path.Combine(basePath, relativePath));
-            if (!AllowedBases.Any(b => fullPath.StartsWith(b, StringComparison.OrdinalIgnoreCase)))
-                throw new SecurityException("Access denied: Path outside sandbox!");
+            filePath = Path.GetFullPath(Path.Combine(WorkPath, relativePath, args.Filename!));
 
-            filePath = Path.Combine(fullPath, args.Filename!);
+            if (!SessionSandbox.IsPathAllowed(filePath, SessionId))
+                throw new SecurityException("Access denied: Path outside session sandbox!");
         }
 
-        // handle duplicate filenames
         if (File.Exists(filePath))
         {
             var baseName = Path.GetFileNameWithoutExtension(filePath);
             var ext = Path.GetExtension(filePath);
             var dir = Path.GetDirectoryName(filePath)!;
-            var timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            filePath = Path.Combine(dir, $"{baseName}_{timestamp}{ext}");
+            filePath = Path.Combine(dir, $"{baseName}_{DateTime.Now:yyyyMMdd_HHmmss}{ext}");
         }
 
         Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
-
-        try
-        {
-            File.WriteAllText(filePath, args.Content, new UTF8Encoding(false));
-            return $"File created: {filePath}";
-        }
-        catch (IOException ex)
-        {
-            throw new IOException($"Failed to write file: {ex.Message}", ex);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            throw new UnauthorizedAccessException($"Permission denied: {ex.Message}", ex);
-        }
+        File.WriteAllText(filePath, args.Content, new UTF8Encoding(false));
+        return $"File created: {filePath}";
     }
 
-    public override ToolFunction GetToolFunction()
-    {
-        return new ToolFunction("create_file", "creates a new text based file.", new
+    public override ToolFunction GetToolFunction() => new ToolFunction(
+        "create_file", "Creates a new text based file.", new
         {
             type = "object",
             properties = new
@@ -80,7 +58,6 @@ public class CreateFile : AITool<CreateFileArguments>
             },
             required = new List<string> { "path", "filename", "content" }
         });
-    }
 }
 
 public class CreateFileArguments

@@ -3,6 +3,7 @@ using GUA_Blazor.Tools;
 using GUA_Blazor.Tools.Filesystem;
 using GUA_Blazor.Tools.Terminal;
 using GUA_Blazor.Tools.TTS;
+using GUA_Blazor.Tools.Web;
 using GUA_Blazor.Tools.WhisperTools;
 using LlmTornado;
 using LlmTornado.Chat;
@@ -20,6 +21,7 @@ public class AIService
     private Conversation _conversation;
     private readonly TerminalSessionStore _sessionStore;
     private readonly Dictionary<string, IAITool> _tools;
+    private string _sessionId;
 
     private static readonly HashSet<string> ImageExtensions = new()
     {
@@ -43,8 +45,9 @@ public class AIService
         ".mp3", ".wav", ".ogg", ".flac", ".m4a"
     };
 
-    public AIService()
+    public AIService(string sessionId)
     {
+        _sessionId = sessionId;
         _api = new TornadoApi(new Uri("http://localhost:8080"));
         _conversation = _api.Chat.CreateConversation(new ChatRequest()
         {
@@ -75,6 +78,10 @@ public class AIService
             ["text_to_speech"] = new TextToSpeech(),
             ["merge_audio"] = new MergeAudio(),
             ["merge_audio_with_video"] = new MergeAudioWithVideo(),
+            ["web_search"] = new WebSearch(),
+            ["scrape_url"] = new ScrapeUrl(),
+            ["zip_directory"] = new ZipDirectory(),
+            ["create_pdf"] = new CreatePdf(),
         };
     }
 

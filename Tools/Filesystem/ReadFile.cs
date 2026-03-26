@@ -6,6 +6,7 @@ namespace GUA_Blazor.Tools.Filesystem;
 
 public class ReadFile : AITool<ReadFileArguments>
 {
+    public ReadFile(string sessionId) : base(sessionId) { }
     protected override string Execute(ReadFileArguments args)
     {
         string fullPath = Sandbox.Resolve(args.Path!);
