@@ -11,16 +11,18 @@ namespace GUA_Blazor.Tools.TTS;
 
 public class MergeAudioWithVideo : AITool<MergeAudioWithVideoArguments>
 {
+    public MergeAudioWithVideo(string sessionId) : base(sessionId) { }
+
     protected override async Task<string> ExecuteAsync(MergeAudioWithVideoArguments args)
     {
-        var outputDir = Path.Combine(Environment.CurrentDirectory, "ai_files_temp");
-        var outputPath = Path.Combine(outputDir, args.OutputFilename ?? "final_video.mp4");
+        var outputPath = Sandbox.Resolve(args.OutputFilename ?? "final_video.mp4", SessionId);
+        var videoPath = Sandbox.Resolve(args.VideoPath!, SessionId);
+        var audioPath = Sandbox.Resolve(args.AudioPath!, SessionId);
 
-        // Loop video if shorter than audio, replace original audio
         var proc = Process.Start(new ProcessStartInfo
         {
             FileName = "ffmpeg",
-            Arguments = $"-stream_loop -1 -i \"{args.VideoPath}\" -i \"{args.AudioPath}\" " +
+            Arguments = $"-stream_loop -1 -i \"{videoPath}\" -i \"{audioPath}\" " +
                         $"-map 0:v -map 1:a -c:v copy -shortest \"{outputPath}\" -y",
             RedirectStandardOutput = true,
             RedirectStandardError = true,

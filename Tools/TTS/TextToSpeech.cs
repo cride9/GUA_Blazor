@@ -13,6 +13,8 @@ public class TextToSpeech : AITool<GenerateScriptArguments>
 {
     private static readonly KokoroService _kokoro = new();
 
+    public TextToSpeech(string sessionId) : base(sessionId) { }
+
     protected override async Task<string> ExecuteAsync(GenerateScriptArguments args)
     {
         if (args.Lines == null || !args.Lines.Any())
@@ -23,12 +25,11 @@ public class TextToSpeech : AITool<GenerateScriptArguments>
         for (int i = 0; i < args.Lines.Count; i++)
         {
             var line = args.Lines[i];
-
-            // SANITIZE the character name so it doesn't break file paths
             var safeCharacter = string.Join("_", (line.Character ?? "Unknown").Split(Path.GetInvalidFileNameChars()));
             var filename = $"line_{i:D3}_{safeCharacter}.wav";
 
-            var path = await _kokoro.SynthesizeAsync(line.Text ?? "", line.Voice ?? "af_heart", filename);
+            var path = Sandbox.Resolve(filename, SessionId);
+            await _kokoro.SynthesizeAsync(line.Text ?? "", line.Voice ?? "af_heart", path);
             outputFiles.Add(path);
         }
 

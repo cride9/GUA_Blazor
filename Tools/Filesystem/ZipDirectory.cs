@@ -7,8 +7,7 @@ namespace GUA_Blazor.Tools.Filesystem;
 
 public class ZipDirectory : AITool<ZipDirectoryArguments>
 {
-    private static readonly string SandboxPath =
-        Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "ai_files_temp"));
+    public ZipDirectory(string sessionId) : base(sessionId) { }
 
     protected override Task<string> ExecuteAsync(ZipDirectoryArguments args)
         => Task.Run(() => Execute(args));
@@ -22,11 +21,8 @@ public class ZipDirectory : AITool<ZipDirectoryArguments>
             ? args.DestinationZipName
             : args.DestinationZipName + ".zip";
 
-        var fullSourcePath = Path.GetFullPath(Path.Combine(SandboxPath, args.SourcePath.TrimStart('/', '\\')));
-        var fullDestPath = Path.GetFullPath(Path.Combine(SandboxPath, destName));
-
-        if (!fullSourcePath.StartsWith(SandboxPath) || !fullDestPath.StartsWith(SandboxPath))
-            throw new SecurityException("Access denied: Path outside sandbox!");
+        var fullSourcePath = Sandbox.Resolve(args.SourcePath, SessionId);
+        var fullDestPath = Sandbox.Resolve(destName, SessionId);
 
         if (File.Exists(fullDestPath))
             File.Delete(fullDestPath);
@@ -50,13 +46,13 @@ public class ZipDirectory : AITool<ZipDirectoryArguments>
 
     public override ToolFunction GetToolFunction() => new ToolFunction(
         "zip_directory",
-        "Zips a directory or file inside ai_files_temp into a .zip archive.",
+        "Zips a directory or file inside the sandbox into a .zip archive.",
         new
         {
             type = "object",
             properties = new
             {
-                sourcePath = new { type = "string", description = "Relative path inside ai_files_temp to zip, e.g. 'my_folder'" },
+                sourcePath = new { type = "string", description = "Relative path inside the sandbox to zip, e.g. 'my_folder'" },
                 destinationZipName = new { type = "string", description = "Output zip filename, e.g. 'result.zip'" }
             },
             required = new List<string> { "sourcePath", "destinationZipName" }

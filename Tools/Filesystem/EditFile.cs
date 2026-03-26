@@ -7,27 +7,18 @@ namespace GUA_Blazor.Tools.Filesystem;
 
 public class EditFile : AITool<EditFileArguments>
 {
+    public EditFile(string sessionId) : base(sessionId) { }
+
     protected override string Execute(EditFileArguments args)
     {
-        string basePath = Path.Combine(
-            Environment.CurrentDirectory,
-            "ai_files_temp"
-        );
-
-        string relativePath = (args.Path ?? string.Empty).TrimStart('/', '\\');
-        if (relativePath.StartsWith("..") || relativePath.Contains(".."))
-            throw new SecurityException("Path traversal attempt detected!");
-
-        string fullPath = Path.GetFullPath(Path.Combine(basePath, relativePath));
-        if (!fullPath.StartsWith(Path.GetFullPath(basePath)))
-            throw new SecurityException("Access denied: Path outside sandbox!");
+        string fullPath = Sandbox.Resolve(args.Path ?? string.Empty, SessionId);
+        string relativePath = Path.GetRelativePath(WorkPath, fullPath);
 
         if (!File.Exists(fullPath))
             return $"File not found: {relativePath}";
 
         string original = File.ReadAllText(fullPath, new UTF8Encoding(false));
 
-        // ── Validate old_str exists and is unambiguous ──────────────────────
         int matchCount = CountOccurrences(original, args.OldStr!);
 
         if (matchCount == 0)
@@ -38,17 +29,14 @@ public class EditFile : AITool<EditFileArguments>
             return $"Edit failed: old_str found {matchCount} times in '{relativePath}'. " +
                    $"Add more surrounding context to make it unique.";
 
-        // ── Apply the replacement ────────────────────────────────────────────
         string updated = original.Replace(args.OldStr!, args.NewStr ?? string.Empty);
 
-        // ── Optional dry-run ────────────────────────────────────────────────
         if (args.DryRun == true)
         {
             var diff = BuildDiff(args.OldStr!, args.NewStr ?? string.Empty);
             return $"[DRY RUN] Would apply the following change to '{relativePath}':\n\n{diff}";
         }
 
-        // ── Backup if requested ──────────────────────────────────────────────
         if (args.Backup == true)
         {
             string backupPath = fullPath + $".bak_{DateTime.Now:yyyyMMdd_HHmmss}";
@@ -63,8 +51,6 @@ public class EditFile : AITool<EditFileArguments>
                (args.Backup == true ? "Backup saved." : string.Empty);
     }
 
-    // ── Helpers ─────────────────────────────────────────────────────────────
-
     private static int CountOccurrences(string source, string pattern)
     {
         if (string.IsNullOrEmpty(pattern)) return 0;
@@ -77,9 +63,6 @@ public class EditFile : AITool<EditFileArguments>
         return count;
     }
 
-    /// <summary>
-    /// Produces a simple - / + diff for the AI and user to read.
-    /// </summary>
     private static string BuildDiff(string oldStr, string newStr)
     {
         var sb = new StringBuilder();
@@ -108,7 +91,7 @@ public class EditFile : AITool<EditFileArguments>
                 path = new
                 {
                     type = "string",
-                    description = "Relative path to the file inside ai_files_temp, including filename. E.g. 'my-app/src/App.tsx'"
+                    description = "Relative path to the file inside the sandbox, including filename. E.g. 'my-app/src/App.tsx'"
                 },
                 old_str = new
                 {

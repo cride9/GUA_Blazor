@@ -5,9 +5,11 @@ namespace GUA_Blazor.Tools.Filesystem;
 
 public class DeleteFile : AITool<DeleteFileArguments>
 {
+    public DeleteFile(string sessionId) : base(sessionId) { }
+
     protected override string Execute(DeleteFileArguments args)
     {
-        string fullPath = Sandbox.Resolve(args.Path!);
+        string fullPath = Sandbox.Resolve(args.Path!, SessionId);
 
         if (File.Exists(fullPath))
         {
@@ -35,8 +37,7 @@ public class DeleteFile : AITool<DeleteFileArguments>
 
     public override ToolFunction GetToolFunction() => new(
         "delete_file",
-        "Deletes a file or directory inside the sandbox. " +
-        "Directories require recursive=true. Use dry_run to preview.",
+        "Deletes a file or directory inside the sandbox. Directories require recursive=true. Use dry_run to preview.",
         new
         {
             type = "object",

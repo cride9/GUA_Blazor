@@ -5,10 +5,12 @@ namespace GUA_Blazor.Tools.Filesystem;
 
 public class MoveFile : AITool<MoveFileArguments>
 {
+    public MoveFile(string sessionId) : base(sessionId) { }
+
     protected override string Execute(MoveFileArguments args)
     {
-        string srcPath = Sandbox.Resolve(args.Source!);
-        string destPath = Sandbox.Resolve(args.Destination!);
+        string srcPath = Sandbox.Resolve(args.Source!, SessionId);
+        string destPath = Sandbox.Resolve(args.Destination!, SessionId);
 
         bool srcIsFile = File.Exists(srcPath);
         bool srcIsDir = Directory.Exists(srcPath);
@@ -16,7 +18,6 @@ public class MoveFile : AITool<MoveFileArguments>
         if (!srcIsFile && !srcIsDir)
             return $"Source not found: {args.Source}";
 
-        // If destination is an existing directory, move source inside it
         if (Directory.Exists(destPath))
             destPath = Path.Combine(destPath, Path.GetFileName(srcPath));
 
@@ -44,8 +45,7 @@ public class MoveFile : AITool<MoveFileArguments>
 
     public override ToolFunction GetToolFunction() => new(
         "move_file",
-        "Moves or relocates a file or directory to a new path inside the sandbox. " +
-        "Creates destination directories as needed.",
+        "Moves or relocates a file or directory to a new path inside the sandbox. Creates destination directories as needed.",
         new
         {
             type = "object",

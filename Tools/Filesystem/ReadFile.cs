@@ -7,9 +7,10 @@ namespace GUA_Blazor.Tools.Filesystem;
 public class ReadFile : AITool<ReadFileArguments>
 {
     public ReadFile(string sessionId) : base(sessionId) { }
+
     protected override string Execute(ReadFileArguments args)
     {
-        string fullPath = Sandbox.Resolve(args.Path!);
+        string fullPath = Sandbox.Resolve(args.Path!, SessionId);
 
         if (!File.Exists(fullPath))
             return $"File not found: {args.Path}";
@@ -37,8 +38,7 @@ public class ReadFile : AITool<ReadFileArguments>
 
     public override ToolFunction GetToolFunction() => new(
         "read_file",
-        "Reads a file inside the sandbox and returns its content with line numbers. " +
-        "Use from_line and to_line to read a specific range of lines.",
+        "Reads a file inside the sandbox and returns its content with line numbers. Use from_line and to_line to read a specific range of lines.",
         new
         {
             type = "object",

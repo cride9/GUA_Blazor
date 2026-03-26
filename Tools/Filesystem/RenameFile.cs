@@ -5,9 +5,11 @@ namespace GUA_Blazor.Tools.Filesystem;
 
 public class RenameFile : AITool<RenameFileArguments>
 {
+    public RenameFile(string sessionId) : base(sessionId) { }
+
     protected override string Execute(RenameFileArguments args)
     {
-        string fullPath = Sandbox.Resolve(args.Path!);
+        string fullPath = Sandbox.Resolve(args.Path!, SessionId);
 
         if (!File.Exists(fullPath) && !Directory.Exists(fullPath))
             return $"Not found: {args.Path}";
@@ -19,10 +21,7 @@ public class RenameFile : AITool<RenameFileArguments>
             return "NewName must be a name only, not a path. Use move_file to relocate.";
 
         string destPath = Path.Combine(parentDir!, newName);
-        destPath = Sandbox.Resolve(
-            Path.GetRelativePath(
-                Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "ai_files_temp")),
-                destPath));
+        destPath = Sandbox.Resolve(Path.GetRelativePath(WorkPath, destPath), SessionId);
 
         if ((File.Exists(destPath) || Directory.Exists(destPath)) && args.Overwrite != true)
             return $"'{args.NewName}' already exists in the same directory. Pass overwrite=true to replace it.";
@@ -45,8 +44,7 @@ public class RenameFile : AITool<RenameFileArguments>
 
     public override ToolFunction GetToolFunction() => new(
         "rename_file",
-        "Renames a file or directory in place. " +
-        "To move to a different location use move_file instead.",
+        "Renames a file or directory in place. To move to a different location use move_file instead.",
         new
         {
             type = "object",

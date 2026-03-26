@@ -6,19 +6,18 @@ namespace GUA_Blazor.Tools.WhisperTools;
 
 public class ExtractAudio : AITool<ExtractAudioArguments>
 {
+    public ExtractAudio(string sessionId) : base(sessionId) { }
+
     protected override string Execute(ExtractAudioArguments args)
     {
-        var outputDir = Path.Combine(Environment.CurrentDirectory, "ai_files_temp");
-        Directory.CreateDirectory(outputDir);
-
-        var audioPath = Path.Combine(outputDir,
-            Path.GetFileNameWithoutExtension(args.VideoPath!) + ".mp3");
+        var videoPath = Sandbox.Resolve(args.VideoPath!, SessionId);
+        var audioPath = Path.Combine(WorkPath, Path.GetFileNameWithoutExtension(videoPath) + ".mp3");
 
         using var proc = new Process();
         proc.StartInfo = new ProcessStartInfo
         {
             FileName = "ffmpeg",
-            Arguments = $"-i \"{args.VideoPath}\" -vn -ar 16000 -ac 1 -ab 64k \"{audioPath}\" -y",
+            Arguments = $"-i \"{videoPath}\" -vn -ar 16000 -ac 1 -ab 64k \"{audioPath}\" -y",
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -34,7 +33,6 @@ public class ExtractAudio : AITool<ExtractAudioArguments>
             }
             catch
             {
-
             }
 
             proc.WaitForExit();

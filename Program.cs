@@ -12,11 +12,13 @@ builder.Services.AddScoped<SessionFactory>();
 
 var app = builder.Build();
 
+var sessionsPath = Path.Combine(builder.Environment.ContentRootPath, "sessions");
+Directory.CreateDirectory(sessionsPath);
+
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(
-        Path.Combine(builder.Environment.ContentRootPath, "ai_files_temp")),
-    RequestPath = "/ai_files"
+    FileProvider = new PhysicalFileProvider(sessionsPath),
+    RequestPath = "/sessions"
 });
 
 // Configure the HTTP request pipeline.

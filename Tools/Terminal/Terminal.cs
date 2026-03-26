@@ -6,8 +6,8 @@ public class TerminalSessionStore
 {
     private readonly ConcurrentDictionary<string, TerminalSession> _sessions = new();
 
-    public TerminalSession GetOrCreate(string sessionId)
-        => _sessions.GetOrAdd(sessionId, id => new TerminalSession(id));
+    public TerminalSession GetOrCreate(string sessionId, string initialDir)
+        => _sessions.GetOrAdd(sessionId, id => new TerminalSession(id, initialDir));
 
     public TerminalSession? Get(string sessionId)
         => _sessions.TryGetValue(sessionId, out var s) ? s : null;
@@ -27,10 +27,10 @@ public class TerminalSession
     private const int MaxLines = 500;
     private readonly object _lock = new();
 
-    public TerminalSession(string id)
+    public TerminalSession(string id, string initialDir)
     {
         Id = id;
-        WorkingDirectory = Environment.CurrentDirectory;
+        WorkingDirectory = initialDir;
     }
 
     public void MarkStarted()

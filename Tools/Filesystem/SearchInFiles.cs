@@ -6,9 +6,11 @@ namespace GUA_Blazor.Tools.Filesystem;
 
 public class SearchInFiles : AITool<SearchInFilesArguments>
 {
+    public SearchInFiles(string sessionId) : base(sessionId) { }
+
     protected override string Execute(SearchInFilesArguments args)
     {
-        string rootPath = Sandbox.Resolve(args.Path ?? string.Empty);
+        string rootPath = Sandbox.Resolve(args.Path ?? string.Empty, SessionId);
 
         if (!Directory.Exists(rootPath) && !File.Exists(rootPath))
             return $"Path not found: {args.Path}";
@@ -46,7 +48,7 @@ public class SearchInFiles : AITool<SearchInFilesArguments>
 
             string[] lines;
             try { lines = File.ReadAllLines(file, new UTF8Encoding(false)); }
-            catch { continue; } // skip binary / locked files
+            catch { continue; }
 
             var fileMatches = new List<string>();
 
@@ -58,11 +60,6 @@ public class SearchInFiles : AITool<SearchInFilesArguments>
 
                 if (!matched) continue;
 
-                string relativePath = Path.GetRelativePath(
-                    Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "ai_files_temp")),
-                    file);
-
-                // Highlight match with arrows
                 string highlight = isRegex
                     ? regex!.Replace(lines[i].Trim(), m => $">>>{m.Value}<<<")
                     : lines[i].Trim().Replace(pattern,
@@ -76,9 +73,7 @@ public class SearchInFiles : AITool<SearchInFilesArguments>
             if (fileMatches.Count == 0) continue;
 
             fileHits++;
-            string relFile = Path.GetRelativePath(
-                Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "ai_files_temp")),
-                file);
+            string relFile = Path.GetRelativePath(WorkPath, file);
 
             sb.AppendLine($"{relFile} ({fileMatches.Count} match(es))");
             foreach (var m in fileMatches) sb.AppendLine(m);
@@ -86,7 +81,7 @@ public class SearchInFiles : AITool<SearchInFilesArguments>
         }
 
         if (hits == 0)
-            return $"No matches found for '{pattern}' in '{args.Path ?? "ai_files_temp"}'.";
+            return $"No matches found for '{pattern}' in '{args.Path ?? "sandbox"}'.";
 
         sb.Insert(0, $"Found {hits} match(es) across {fileHits} file(s):\n\n");
 
@@ -98,8 +93,7 @@ public class SearchInFiles : AITool<SearchInFilesArguments>
 
     public override ToolFunction GetToolFunction() => new(
         "search_in_files",
-        "Searches for a text pattern or regex across files in the sandbox. " +
-        "Returns matching lines with line numbers and the file they were found in.",
+        "Searches for a text pattern or regex across files in the sandbox. Returns matching lines with line numbers and the file they were found in.",
         new
         {
             type = "object",

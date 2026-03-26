@@ -12,14 +12,14 @@ namespace GUA_Blazor.Tools.TTS;
 
 public class MergeAudio : AITool<MergeAudioArguments>
 {
+    public MergeAudio(string sessionId) : base(sessionId) { }
+
     protected override async Task<string> ExecuteAsync(MergeAudioArguments args)
     {
-        var outputDir = Path.Combine(Environment.CurrentDirectory, "ai_files_temp");
-        var outputPath = Path.Combine(outputDir, args.OutputFilename ?? "merged_audio.wav");
+        var outputPath = Sandbox.Resolve(args.OutputFilename ?? "merged_audio.wav", SessionId);
+        var listPath = Sandbox.Resolve("concat_list.txt", SessionId);
 
-        // CRITICAL FIX: FFmpeg concat requires forward slashes even on Windows
-        var listPath = Path.Combine(outputDir, "concat_list.txt");
-        var lines = args.AudioFiles!.Select(f => $"file '{f.Replace("\\", "/").Replace("'", "\\'")}'");
+        var lines = args.AudioFiles!.Select(f => $"file '{Sandbox.Resolve(f, SessionId).Replace("\\", "/").Replace("'", "\\'")}'");
         await File.WriteAllTextAsync(listPath, string.Join("\n", lines));
 
         var proc = Process.Start(new ProcessStartInfo

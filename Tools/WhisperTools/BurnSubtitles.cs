@@ -6,6 +6,8 @@ namespace GUA_Blazor.Tools.WhisperTools;
 
 public class BurnSubtitles : AITool<BurnSubtitlesArguments>
 {
+    public BurnSubtitles(string sessionId) : base(sessionId) { }
+
     protected override async Task<string> ExecuteAsync(BurnSubtitlesArguments args)
     {
         var color = (args.Color ?? "yellow").ToLowerInvariant() switch
@@ -25,12 +27,14 @@ public class BurnSubtitles : AITool<BurnSubtitlesArguments>
             _ => 2
         };
 
-        var outputPath = Path.Combine(
-            Path.GetDirectoryName(args.VideoPath!)!,
-            Path.GetFileNameWithoutExtension(args.VideoPath!) + "_captioned.mp4");
+        var videoPath = Sandbox.Resolve(args.VideoPath!, SessionId);
+        var srtPath = Sandbox.Resolve(args.SrtPath!, SessionId);
 
-        // escape path for ffmpeg filter (backslashes and colons need escaping on Windows)
-        var escapedSrt = args.SrtPath!.Replace("\\", "/").Replace(":", "\\:");
+        var outputPath = Path.Combine(
+            Path.GetDirectoryName(videoPath)!,
+            Path.GetFileNameWithoutExtension(videoPath) + "_captioned.mp4");
+
+        var escapedSrt = srtPath.Replace("\\", "/").Replace(":", "\\:");
 
         var filter = $"subtitles='{escapedSrt}':force_style='" +
                      $"FontName={args.Font ?? "Arial"}," +
@@ -42,7 +46,7 @@ public class BurnSubtitles : AITool<BurnSubtitlesArguments>
         var proc = Process.Start(new ProcessStartInfo
         {
             FileName = "ffmpeg",
-            Arguments = $"-i \"{args.VideoPath}\" -vf \"{filter}\" -c:v libx264 -preset ultrafast -c:a copy \"{outputPath}\" -y",
+            Arguments = $"-i \"{videoPath}\" -vf \"{filter}\" -c:v libx264 -preset ultrafast -c:a copy \"{outputPath}\" -y",
             RedirectStandardOutput = true,
             RedirectStandardError = true,
             RedirectStandardInput = true,
@@ -62,7 +66,7 @@ public class BurnSubtitles : AITool<BurnSubtitlesArguments>
         catch (OperationCanceledException)
         {
             proc.Kill();
-            throw new Exception("FFmpeg timed out after 5 minutes.");
+            throw new Exception("FFmpeg timed out after 10 minutes.");
         }
 
         var stderr = await stderrTask;

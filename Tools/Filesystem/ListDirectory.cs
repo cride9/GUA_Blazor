@@ -6,26 +6,13 @@ namespace GUA_Blazor.Tools.Filesystem;
 
 public class ListDirectory : AITool<ListDirectoryArguments>
 {
+    public ListDirectory(string sessionId) : base(sessionId) { }
+
     protected override string Execute(ListDirectoryArguments args)
     {
-        string basePath = Path.Combine(
-            Environment.CurrentDirectory,
-            "ai_files_temp"
-        );
-
-        string subPath = (args.Path ?? string.Empty).TrimStart('/', '\\');
-
-        if (subPath.StartsWith("..") || subPath.Contains(".."))
-        {
-            throw new SecurityException("Path traversal attempt detected!");
-        }
-
-        string fullPath = Path.GetFullPath(Path.Combine(basePath, subPath));
-
-        if (!fullPath.StartsWith(Path.GetFullPath(basePath)))
-        {
-            throw new SecurityException("Access denied: Path outside sandbox!");
-        }
+        string fullPath = Sandbox.Resolve(args.Path ?? string.Empty, SessionId);
+        string subPath = Path.GetRelativePath(WorkPath, fullPath);
+        if (subPath == ".") subPath = string.Empty;
 
         if (!Directory.Exists(fullPath))
         {
@@ -33,7 +20,7 @@ public class ListDirectory : AITool<ListDirectoryArguments>
         }
 
         var sb = new StringBuilder();
-        sb.AppendLine($"Contents of: {(string.IsNullOrEmpty(subPath) ? "ai_files_temp" : subPath)}");
+        sb.AppendLine($"Contents of: {(string.IsNullOrEmpty(subPath) ? "sandbox root" : subPath)}");
         sb.AppendLine();
 
         BuildTree(fullPath, fullPath, sb, string.Empty);
@@ -68,7 +55,7 @@ public class ListDirectory : AITool<ListDirectoryArguments>
 
     public override ToolFunction GetToolFunction()
     {
-        return new ToolFunction("list_directory", "Lists all files and subdirectories in a given folder inside the sandbox. If no path is provided, lists the root ai_files_temp folder.", new
+        return new ToolFunction("list_directory", "Lists all files and subdirectories in a given folder inside the sandbox. If no path is provided, lists the root sandbox folder.", new
         {
             type = "object",
             properties = new
@@ -76,7 +63,7 @@ public class ListDirectory : AITool<ListDirectoryArguments>
                 path = new
                 {
                     type = "string",
-                    description = "Relative path within ai_files_temp to list. Omit or leave empty to list the root sandbox folder."
+                    description = "Relative path within sandbox to list. Omit or leave empty to list the root sandbox folder."
                 }
             },
             required = new List<string>()

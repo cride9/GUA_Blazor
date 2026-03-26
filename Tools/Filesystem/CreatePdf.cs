@@ -1,26 +1,21 @@
 ﻿using LlmTornado.Common;
-using System.Security;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Markdown;
 using System.Text.Json.Serialization;
 
 namespace GUA_Blazor.Tools.Filesystem;
 
 public class CreatePdf : AITool<CreatePdfArguments>
 {
-    private static readonly string SandboxPath =
-        Path.GetFullPath(Path.Combine(Environment.CurrentDirectory, "ai_files_temp"));
+    public CreatePdf(string sessionId) : base(sessionId) { }
 
     protected override string Execute(CreatePdfArguments args)
     {
         if (string.IsNullOrEmpty(args.Path))
             throw new Exception("path is required.");
 
-        var relativePath = args.Path.TrimStart('/', '\\');
-        if (relativePath.Contains(".."))
-            throw new SecurityException("Path traversal attempt detected!");
-
-        var fullPath = Path.GetFullPath(Path.Combine(SandboxPath, relativePath));
-        if (!fullPath.StartsWith(SandboxPath))
-            throw new SecurityException("Access denied: Path outside sandbox!");
+        var fullPath = Sandbox.Resolve(args.Path, SessionId);
 
         var directory = Path.GetDirectoryName(fullPath)!;
         Directory.CreateDirectory(directory);
@@ -42,13 +37,13 @@ public class CreatePdf : AITool<CreatePdfArguments>
 
     public override ToolFunction GetToolFunction() => new ToolFunction(
         "create_pdf",
-        "Creates a PDF file from markdown content. Saves into ai_files_temp.",
+        "Creates a PDF file from markdown content. Saves into the sandbox.",
         new
         {
             type = "object",
             properties = new
             {
-                path = new { type = "string", description = "Relative path for the PDF inside ai_files_temp, e.g. 'reports/summary.pdf'" },
+                path = new { type = "string", description = "Relative path for the PDF inside the sandbox, e.g. 'reports/summary.pdf'" },
                 content = new { type = "string", description = "Markdown formatted content for the PDF." }
             },
             required = new List<string> { "path", "content" }

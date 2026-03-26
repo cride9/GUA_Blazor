@@ -5,16 +5,18 @@ namespace GUA_Blazor.Tools.WhisperTools;
 
 public class TranscribeAudio : AITool<TranscribeArguments>
 {
+    public TranscribeAudio(string sessionId) : base(sessionId) { }
     private static readonly HttpClient _http = new();
 
     protected override async Task<string> ExecuteAsync(TranscribeArguments args)
     {
         var format = args.Format ?? "srt";
         var language = args.Language ?? "en";
+        var audioPath = Sandbox.Resolve(args.AudioPath!, SessionId);
 
         using var form = new MultipartFormDataContent();
-        form.Add(new ByteArrayContent(await File.ReadAllBytesAsync(args.AudioPath!)),
-            "file", Path.GetFileName(args.AudioPath!));
+        form.Add(new ByteArrayContent(await File.ReadAllBytesAsync(audioPath)),
+            "file", Path.GetFileName(audioPath));
         form.Add(new StringContent(language), "language");
         form.Add(new StringContent(format), "response_format");
 
@@ -22,7 +24,7 @@ public class TranscribeAudio : AITool<TranscribeArguments>
         resp.EnsureSuccessStatusCode();
         var result = await resp.Content.ReadAsStringAsync();
 
-        var outPath = Path.ChangeExtension(args.AudioPath!, format == "plain" ? ".txt" : $".{format}");
+        var outPath = Path.ChangeExtension(audioPath, format == "plain" ? ".txt" : $".{format}");
         await File.WriteAllTextAsync(outPath, result);
 
         return $"Transcription saved: {outPath}\n\n{result}";

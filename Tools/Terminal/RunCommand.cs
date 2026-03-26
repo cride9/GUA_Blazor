@@ -9,7 +9,7 @@ public class RunCommand : AITool<RunCommandArguments>
 {
     private readonly TerminalSessionStore _store;
 
-    public RunCommand(TerminalSessionStore store) { _store = store; }
+    public RunCommand(TerminalSessionStore store, string sessionId) : base(sessionId) { _store = store; }
 
     protected override string Execute(RunCommandArguments args)
     {
@@ -18,10 +18,9 @@ public class RunCommand : AITool<RunCommandArguments>
         if (blocked.Any(b => cmd.Contains(b, StringComparison.OrdinalIgnoreCase)))
             throw new SecurityException("Blocked command.");
 
-        // ── Auto-confirm interactive package managers ────────────────
         cmd = AutoConfirm(cmd);
 
-        var session = _store.GetOrCreate(args.SessionId ?? "default");
+        var session = _store.GetOrCreate(args.SessionId ?? "default", WorkPath);
 
         string cwd = session.WorkingDirectory;
         if (!string.IsNullOrWhiteSpace(args.WorkingDirectory))
@@ -35,13 +34,12 @@ public class RunCommand : AITool<RunCommandArguments>
             WorkingDirectory = cwd,
             RedirectStandardOutput = true,
             RedirectStandardError = true,
-            RedirectStandardInput = true,   // ← allows sending 'y' if needed
+            RedirectStandardInput = true,
             UseShellExecute = false,
             CreateNoWindow = true,
         };
 
-        // Pass YES through environment so tools like npm/npx respect it
-        psi.Environment["CI"] = "true";   // disables interactive prompts in many CLIs
+        psi.Environment["CI"] = "true";
         psi.Environment["npm_config_yes"] = "true";
 
         session.AppendLog($"\n$ {cmd}");
@@ -54,7 +52,6 @@ public class RunCommand : AITool<RunCommandArguments>
             if (e.Data == null) return;
             session.AppendLog(e.Data);
 
-            // Auto-answer any remaining y/n prompts just in case
             if (e.Data.TrimEnd().EndsWith("(y)") || e.Data.Contains("Ok to proceed"))
             {
                 try { process.StandardInput.WriteLine("y"); } catch { }
@@ -88,7 +85,6 @@ public class RunCommand : AITool<RunCommandArguments>
         process.BeginOutputReadLine();
         process.BeginErrorReadLine();
 
-        // Immediately send 'y' to stdin in case prompt appears before stdout event fires
         Task.Delay(500).ContinueWith(_ =>
         {
             try { process.StandardInput.WriteLine("y"); } catch { }
@@ -102,15 +98,12 @@ public class RunCommand : AITool<RunCommandArguments>
 
     private static string AutoConfirm(string cmd)
     {
-        // npm create / npm init → add --yes
         if (System.Text.RegularExpressions.Regex.IsMatch(cmd, @"npm (create|init)\b")
             && !cmd.Contains("--yes") && !cmd.Contains("-y"))
         {
-            // Insert --yes after the package name section
             cmd = cmd + " --yes";
         }
 
-        // npx without -y
         if (cmd.TrimStart().StartsWith("npx ") && !cmd.Contains("--yes") && !cmd.Contains("-y"))
             cmd = cmd.Replace("npx ", "npx --yes ");
 

@@ -1,4 +1,5 @@
-﻿using GUA_Blazor.Models;
+﻿using GUA_Blazor.Helper;
+using GUA_Blazor.Models;
 using Markdig;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
@@ -18,7 +19,6 @@ public partial class Home
     private bool isStreaming = false;
     private ChatSession activeSession => GetActiveChatSession();
     private SessionFactory chatSessionFactory = null!;
-    private ChatMessage? currentMessage = null;
 
     private List<IBrowserFile> uploadedFiles = [];
     private List<string> uploadedPaths = [];
@@ -221,13 +221,10 @@ public partial class Home
             {
                 var ext = Path.GetExtension(file.Name).ToLowerInvariant();
                 var trustedFileName = Path.GetRandomFileName() + ext;
-                var path = Path.Combine(
-                    Environment.ContentRootPath,
-                    Environment.EnvironmentName,
-                    "unsafe_uploads",
-                    trustedFileName);
 
-                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                var path = Path.Combine(
+                    SessionSandbox.GetUploadsPath(activeSessionId.ToString("N")),
+                    trustedFileName);
 
                 await using FileStream fs = new(path, FileMode.Create);
                 await file.OpenReadStream(maxFileSize).CopyToAsync(fs);

@@ -102,7 +102,7 @@ You are trusted to get things done. Act with confidence, verify your work, and a
 When a user uploads a video or audio file, its full path will be provided in the message. Use the following steps:
 
 **To transcribe a video:**
-1. Call `extract_audio` with the video path → this produces an `.mp3` in `ai_files_temp`
+1. Call `extract_audio` with the video path → this produces an `.mp3` in your sandboxed directory
 2. Call `transcribe_audio` with the returned audio path and `format: ""srt""` → this produces an `.srt` file
 3. Report the transcript to the user and confirm the `.srt` was saved
 
@@ -121,7 +121,7 @@ When a user uploads a video or audio file, its full path will be provided in the
 * Never skip `extract_audio` for video files — `transcribe_audio` requires an audio file, not a video
 * Always confirm the output file exists before reporting success
 * If FFmpeg fails, report the exact error from the tool result — do not guess
-* Output files go to `ai_files_temp` (your sandboxed folder) — never modify the original upload
+* Output files go to your sandboxed work directory — never modify the original upload
 
 ### TTS & Video Content Creation
 

@@ -8,21 +8,16 @@ namespace GUA_Blazor.Service;
 
 public class KokoroService
 {
-    private readonly string _outputDir;
     private static readonly HttpClient _http = new();
     private readonly string _baseUrl;
 
     public KokoroService(string baseUrl = "http://localhost:8082")
     {
         _baseUrl = baseUrl;
-        _outputDir = Path.Combine(Environment.CurrentDirectory, "ai_files_temp");
-        Directory.CreateDirectory(_outputDir);
     }
 
-    public async Task<string> SynthesizeAsync(string text, string voice, string filename)
+    public async Task<string> SynthesizeAsync(string text, string voice, string outPath)
     {
-        var outPath = Path.Combine(_outputDir, filename);
-
         var payload = JsonSerializer.Serialize(new { text, voice, output = outPath });
         var content = new StringContent(payload, Encoding.UTF8, "application/json");
 
