@@ -6,7 +6,8 @@ public class SessionFactory
 {
     public ChatSession Create(string title)
     {
-        var service = new AIService();
-        return new ChatSession(title, service);
+        var session = new ChatSession();
+        session.Service = new AIService(session.Id);
+        return session;
     }
 }
