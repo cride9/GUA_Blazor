@@ -41,7 +41,7 @@ public class ZipDirectory : AITool<ZipDirectoryArguments>
             throw new Exception($"Source not found: {args.SourcePath}");
         }
 
-        return $"Archive created: {fullDestPath}";
+        return $"Archive created at {fullDestPath}. Respond with a clickable Markdown download link to this file in the format: [Download archive](file_path).";
     }
 
     public override ToolFunction GetToolFunction() => new ToolFunction(

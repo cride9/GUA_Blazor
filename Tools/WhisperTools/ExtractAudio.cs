@@ -17,7 +17,7 @@ public class ExtractAudio : AITool<ExtractAudioArguments>
         proc.StartInfo = new ProcessStartInfo
         {
             FileName = "ffmpeg",
-            Arguments = $"-i \"{videoPath}\" -vn -ar 16000 -ac 1 -ab 64k \"{audioPath}\" -y",
+            Arguments = $"-y -i \"{videoPath}\" -vn -acodec libmp3lame -ab 128k \"{audioPath}\"",
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true
@@ -25,7 +25,7 @@ public class ExtractAudio : AITool<ExtractAudioArguments>
 
         proc.Start();
 
-        if (!proc.WaitForExit(60000))
+        if (!proc.WaitForExit(120_000))
         {
             try
             {

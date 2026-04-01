@@ -11,14 +11,15 @@ namespace GUA_Blazor.Components.Pages;
 
 public partial class Home
 {
-    private Dictionary<Guid, ChatSession> chatHistory = new();
+    private Dictionary<string, ChatSession> chatHistory = new();
     private HashSet<int> expandedToolcalls = new();
 
-    private Guid activeSessionId = Guid.NewGuid();
+    private string activeSessionId = string.Empty;
     private bool isLoading = false;
     private bool isStreaming = false;
-    private ChatSession activeSession => GetActiveChatSession();
+    private ChatSession activeSession => chatHistory[activeSessionId];
     private SessionFactory chatSessionFactory = null!;
+    private ChatMessage? currentMessage = null;
 
     private List<IBrowserFile> uploadedFiles = [];
     private List<string> uploadedPaths = [];
@@ -36,6 +37,12 @@ public partial class Home
         chatSessionFactory = _factory;
     }
 
+    // Ensure the first session exists as soon as the component loads
+    protected override void OnInitialized()
+    {
+        StartNewChat();
+    }
+
     private string inputText
     {
         get => _inputText;
@@ -45,7 +52,6 @@ public partial class Home
             _ = AutoResize();
         }
     }
-
 
     private void OpenImagePreview(string path)
     {
@@ -75,6 +81,8 @@ public partial class Home
         StateHasChanged();
 
         var message = await activeSession.AddMessageToSession("", false);
+
+        _ = AutoResize();
 
         if (isAgentMode)
         {
@@ -128,29 +136,24 @@ public partial class Home
 
     private void StartNewChat()
     {
-        var id = Guid.NewGuid();
-        var newSession = chatSessionFactory.Create("My Chat Title");
+        var newSession = chatSessionFactory.Create("New Chat");
+        activeSessionId = newSession.Id;
+        chatHistory[activeSessionId] = newSession;
 
-        chatHistory.Add(id, newSession);
-        activeSessionId = id;
+        // Clear any pending uploads when creating a new chat
+        uploadedFiles.Clear();
+        uploadedPaths.Clear();
+        inputText = string.Empty;
     }
 
-    private ChatSession GetActiveChatSession()
-    {
-        if (chatHistory.ContainsKey(activeSessionId))
-        {
-            return chatHistory[activeSessionId];
-        }
-        else
-        {
-            StartNewChat();
-            return chatHistory[activeSessionId];
-        }
-    }
-
-    private void LoadSession(Guid id)
+    private void LoadSession(string id)
     {
         activeSessionId = id;
+        
+        // Clear pending uploads when switching chats
+        uploadedFiles.Clear();
+        uploadedPaths.Clear();
+        inputText = string.Empty;
     }
 
     private string RenderMarkdown(string content)
@@ -221,9 +224,10 @@ public partial class Home
             {
                 var ext = Path.GetExtension(file.Name).ToLowerInvariant();
                 var trustedFileName = Path.GetRandomFileName() + ext;
-
+                
+                // activeSessionId is now guaranteed to match the active AI service
                 var path = Path.Combine(
-                    SessionSandbox.GetUploadsPath(activeSessionId.ToString("N")),
+                    SessionSandbox.GetUploadsPath(activeSessionId),
                     trustedFileName);
 
                 await using FileStream fs = new(path, FileMode.Create);

@@ -48,7 +48,7 @@ public class AIService
     public AIService(string sessionId)
     {
         _sessionId = sessionId;
-        _api = new TornadoApi(new Uri("http://localhost:8080"));
+        _api = new TornadoApi(new Uri("http://26.86.240.240:8080"));
         _conversation = _api.Chat.CreateConversation(new ChatRequest()
         {
             Messages = [
@@ -128,6 +128,7 @@ public class AIService
             Messages = messages,
             InvokeClrToolsAutomatically = false,
             ToolChoice = OutboundToolChoice.Auto,
+            ParallelToolCalls = true,
         });
 
         var stopSignal = new StopSignal();
@@ -180,8 +181,14 @@ public class AIService
 
             if (_tools.TryGetValue(call!.Name, out var tool))
             {
-                var result = await tool.ExecuteFunctionAsync(call);
-                call.Result = new FunctionResult(call, result, null);
+                try
+                {
+                    var result = await tool.ExecuteFunctionAsync(call);
+                    call.Result = new FunctionResult(call, result, null);
+                } catch (Exception e)
+                {
+                    call.Result = new FunctionResult(call, e.Message, null);
+                }
             }
             else
             {
