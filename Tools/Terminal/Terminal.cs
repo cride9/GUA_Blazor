@@ -1,4 +1,5 @@
 ﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace GUA_Blazor.Tools.Terminal;
 
@@ -12,6 +13,14 @@ public class TerminalSessionStore
     public TerminalSession? Get(string sessionId)
         => _sessions.TryGetValue(sessionId, out var s) ? s : null;
 
+    public void KillAll()
+    {
+        foreach (var session in _sessions.Values)
+        {
+            session.Kill();
+        }
+    }
+
     public IEnumerable<string> ListIds() => _sessions.Keys;
 }
 
@@ -22,6 +31,7 @@ public class TerminalSession
     public bool IsRunning { get; private set; }
     public DateTime? LastCommandStarted { get; private set; }
     public DateTime? LastCommandFinished { get; private set; }
+    public Process? CurrentProcess { get; set; }
 
     private readonly Queue<string> _log = new();
     private const int MaxLines = 500;
@@ -43,6 +53,23 @@ public class TerminalSession
     {
         IsRunning = false;
         LastCommandFinished = DateTime.UtcNow;
+        CurrentProcess = null;
+    }
+
+    public void Kill()
+    {
+        try
+        {
+            if (CurrentProcess != null && !CurrentProcess.HasExited)
+            {
+                CurrentProcess.Kill(true);
+            }
+        }
+        catch { }
+        finally
+        {
+            MarkFinished();
+        }
     }
 
     public void AppendLog(string line)

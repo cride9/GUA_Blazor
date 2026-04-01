@@ -20,7 +20,7 @@ public class ReadTerminalOutput : AITool<ReadTerminalOutputArguments>
         sb.AppendLine($"CWD     : {session.WorkingDirectory}");
 
         // ← AI reads this to know whether to keep polling or move on
-        sb.AppendLine($"Status  : {(session.IsRunning ? "⏳ RUNNING" : "✅ FINISHED")}");
+        sb.AppendLine($"Status  : {(session.IsRunning ? "⏳ RUNNING (Wait at least 5-10s before reading again if you expect long output)" : "✅ FINISHED")}");
 
         if (session.LastCommandStarted.HasValue)
         {

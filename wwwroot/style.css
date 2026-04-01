@@ -788,24 +788,30 @@ html, body {
 .toolcall-toggle {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
-    background: var(--surface);
+    gap: 8px;
+    padding: 8px 14px;
+    background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: 20px;
     color: var(--text-secondary);
     font-family: var(--font-ui);
-    font-size: 11px;
+    font-size: 12px;
+    font-weight: 500;
     cursor: pointer;
-    transition: all 0.15s ease;
-    opacity: 0.7;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    backdrop-filter: blur(4px);
 }
 
     .toolcall-toggle:hover {
-        opacity: 1;
         border-color: var(--accent);
         color: var(--accent);
         background: var(--accent-dim);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(212, 168, 83, 0.15);
+    }
+
+    .toolcall-toggle:active {
+        transform: translateY(0);
     }
 
 .toolcall-icon {
@@ -813,14 +819,15 @@ html, body {
 }
 
 .toolcall-dropdown {
-    margin-top: 6px;
-    background: var(--surface);
+    margin-top: 8px;
+    background: #121212;
     border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
+    border-radius: 12px;
     overflow: hidden;
-    width: min(500px, 90vw);
-    box-shadow: var(--shadow);
-    animation: slideDown 0.2s ease;
+    width: min(550px, 90vw);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    border-left: 3px solid var(--accent);
 }
 
 .toolcall-gear-icon {
@@ -857,14 +864,13 @@ html, body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 12px;
-    background: rgba(212, 168, 83, 0.08);
+    padding: 10px 16px;
+    background: rgba(255, 255, 255, 0.02);
     border-bottom: 1px solid var(--border);
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
+    color: var(--text);
+    letter-spacing: 0.3px;
 }
 
 .toolcall-copy {

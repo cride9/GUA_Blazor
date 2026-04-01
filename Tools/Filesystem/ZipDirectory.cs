@@ -1,4 +1,5 @@
-﻿using LlmTornado.Common;
+﻿using GUA_Blazor.Helper;
+using LlmTornado.Common;
 using System.IO.Compression;
 using System.Security;
 using System.Text.Json.Serialization;
@@ -41,7 +42,9 @@ public class ZipDirectory : AITool<ZipDirectoryArguments>
             throw new Exception($"Source not found: {args.SourcePath}");
         }
 
-        return $"Archive created at {fullDestPath}. Respond with a clickable Markdown download link to this file in the format: [Download archive](file_path).";
+        var relativePath = Path.GetRelativePath(SessionSandbox.GetSessionPath(SessionId), fullDestPath).Replace('\\', '/');
+        var downloadUrl = $"/sessions/{SessionId}/{relativePath}";
+        return $"Archive created at {fullDestPath}. Download link: [Download archive]({downloadUrl})";
     }
 
     public override ToolFunction GetToolFunction() => new ToolFunction(

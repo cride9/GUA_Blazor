@@ -1,4 +1,5 @@
-﻿using LlmTornado.Common;
+﻿using GUA_Blazor.Helper;
+using LlmTornado.Common;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
 using QuestPDF.Markdown;
@@ -30,9 +31,10 @@ public class CreatePdf : AITool<CreatePdfArguments>
                 page.Margin(40);
                 page.Content().Markdown(markdownText);
             });
-        }).GeneratePdf(fullPath);
-
-        return $"PDF created: {fullPath}";
+         }).GeneratePdf(fullPath);
+        var relativePath = Path.GetRelativePath(SessionSandbox.GetSessionPath(SessionId), fullPath).Replace('\\', '/');
+        var downloadUrl = $"/sessions/{SessionId}/{relativePath}";
+        return $"PDF created: {fullPath}. Download link: [Download PDF]({downloadUrl})";
     }
 
     public override ToolFunction GetToolFunction() => new ToolFunction(

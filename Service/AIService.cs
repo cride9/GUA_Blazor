@@ -81,6 +81,7 @@ public class AIService
             ["web_search"] = new WebSearch(),
             ["scrape_url"] = new ScrapeUrl(),
             ["zip_directory"] = new ZipDirectory(_sessionId),
+            ["unzip_file"] = new UnzipFile(_sessionId),
             ["create_pdf"] = new CreatePdf(_sessionId),
             ["git_ingest"] = new GitIngestTool(),
         };

@@ -21,6 +21,10 @@ public class RunCommand : AITool<RunCommandArguments>
         cmd = AutoConfirm(cmd);
 
         var session = _store.GetOrCreate(args.SessionId ?? "default", WorkPath);
+        if (session.IsRunning)
+        {
+            session.Kill();
+        }
 
         string cwd = session.WorkingDirectory;
         if (!string.IsNullOrWhiteSpace(args.WorkingDirectory))
@@ -46,6 +50,7 @@ public class RunCommand : AITool<RunCommandArguments>
         session.MarkStarted();
 
         var process = new Process { StartInfo = psi, EnableRaisingEvents = true };
+        session.CurrentProcess = process;
 
         process.OutputDataReceived += (_, e) =>
         {

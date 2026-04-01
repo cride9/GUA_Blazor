@@ -23,11 +23,11 @@ public class CreateFile : AITool<CreateFileArguments>
         }
         else
         {
-            var relativePath = args.Path!.TrimStart('/', '\\');
-            if (relativePath.Contains(".."))
+            var path = args.Path!.TrimStart('/', '\\');
+            if (path.Contains(".."))
                 throw new SecurityException("Path traversal attempt detected!");
 
-            filePath = Path.GetFullPath(Path.Combine(WorkPath, relativePath, args.Filename!));
+            filePath = Path.GetFullPath(Path.Combine(WorkPath, path, args.Filename!));
 
             if (!SessionSandbox.IsPathAllowed(filePath, SessionId))
                 throw new SecurityException("Access denied: Path outside session sandbox!");
@@ -43,7 +43,9 @@ public class CreateFile : AITool<CreateFileArguments>
 
         Directory.CreateDirectory(Path.GetDirectoryName(filePath)!);
         File.WriteAllText(filePath, args.Content, new UTF8Encoding(false));
-        return $"File created: {filePath}";
+        var relativePath = Path.GetRelativePath(SessionSandbox.GetSessionPath(SessionId), filePath).Replace('\\', '/');
+        var downloadUrl = $"/sessions/{SessionId}/{relativePath}";
+        return $"File created: {filePath}. Download link: [Download file]({downloadUrl})";
     }
 
     public override ToolFunction GetToolFunction() => new ToolFunction(

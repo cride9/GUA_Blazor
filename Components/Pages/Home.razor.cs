@@ -19,7 +19,6 @@ public partial class Home
     private bool isStreaming = false;
     private ChatSession activeSession => chatHistory[activeSessionId];
     private SessionFactory chatSessionFactory = null!;
-    private ChatMessage? currentMessage = null;
 
     private List<IBrowserFile> uploadedFiles = [];
     private List<string> uploadedPaths = [];
@@ -165,18 +164,29 @@ public partial class Home
     }
 
     private bool HasToolcall(string content) =>
-        content?.Contains("//TOOLCALL") == true && content?.Contains("//TOOLCALL_END") == true;
+        content?.Contains("//TOOLCALL") == true;
 
     private string ExtractToolcallJson(string content)
     {
         if (string.IsNullOrEmpty(content)) return "{}";
 
-        var start = content.IndexOf("//TOOLCALL") + "//TOOLCALL".Length;
-        var end = content.IndexOf("//TOOLCALL_END");
+        var start = content.IndexOf("//TOOLCALL");
+        if (start < 0) return "{}";
+        
+        start += "//TOOLCALL".Length;
+        var end = content.IndexOf("//TOOLCALL_END", start);
 
-        if (start < 0 || end < 0 || end <= start) return "{}";
+        string json;
+        if (end < 0)
+        {
+            // If it's still streaming, take everything after //TOOLCALL
+            json = content.Substring(start).Trim();
+        }
+        else
+        {
+            json = content.Substring(start, end - start).Trim();
+        }
 
-        var json = content.Substring(start, end - start).Trim();
         try
         {
             using var doc = JsonDocument.Parse(json);
@@ -205,12 +215,24 @@ public partial class Home
     {
         if (string.IsNullOrEmpty(content)) return content;
 
-        var start = content.IndexOf("//TOOLCALL");
-        var end = content.IndexOf("//TOOLCALL_END");
+        while (true)
+        {
+            var start = content.IndexOf("//TOOLCALL");
+            if (start < 0) break;
 
-        if (start < 0 || end < 0) return content;
+            var end = content.IndexOf("//TOOLCALL_END", start);
+            if (end < 0)
+            {
+                // If we have a start but no end, it's currently streaming a toolcall.
+                // Hide the partial toolcall from the main chat bubble.
+                content = content[..start];
+                break;
+            }
 
-        return (content[..start] + content[(end + "//TOOLCALL_END".Length)..]).Trim();
+            content = content[..start] + content[(end + "//TOOLCALL_END".Length)..];
+        }
+
+        return content.Trim();
     }
 
     private async Task LoadFiles(InputFileChangeEventArgs e)
