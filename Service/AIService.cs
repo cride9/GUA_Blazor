@@ -82,6 +82,7 @@ public class AIService
             ["scrape_url"] = new ScrapeUrl(),
             ["zip_directory"] = new ZipDirectory(_sessionId),
             ["create_pdf"] = new CreatePdf(_sessionId),
+            ["git_ingest"] = new GitIngestTool(),
         };
     }
 
