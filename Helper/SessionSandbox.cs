@@ -18,7 +18,7 @@ public static class SessionSandbox
 
     public static string GetUploadsPath(string sessionId)
     {
-        var path = Path.Combine(GetSessionPath(sessionId), "uploads");
+        var path = Path.Combine(GetSessionPath(sessionId), "work");
         Directory.CreateDirectory(path);
         return path;
     }
