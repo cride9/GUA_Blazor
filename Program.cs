@@ -1,5 +1,6 @@
 using GUA_Blazor.Components;
 using GUA_Blazor.Models;
+using GUA_Blazor.Tools.Web;
 using Microsoft.Extensions.FileProviders;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,6 +12,9 @@ builder.Services.AddRazorComponents()
 builder.Services.AddScoped<SessionFactory>();
 
 var app = builder.Build();
+
+var browser = BrowserSession.Instance;
+await browser.EnsureInitializedAsync();
 
 var sessionsPath = Path.Combine(builder.Environment.ContentRootPath, "sessions");
 Directory.CreateDirectory(sessionsPath);

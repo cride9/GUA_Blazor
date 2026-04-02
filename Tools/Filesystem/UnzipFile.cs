@@ -9,10 +9,10 @@ public class UnzipFile : AITool<UnzipFileArguments>
 {
     public UnzipFile(string sessionId) : base(sessionId) { }
 
-    protected override Task<string> ExecuteAsync(UnzipFileArguments args)
+    protected override Task<object?> ExecuteAsync(UnzipFileArguments args)
         => Task.Run(() => Execute(args));
 
-    protected override string Execute(UnzipFileArguments args)
+    protected override object? Execute(UnzipFileArguments args)
     {
         if (string.IsNullOrEmpty(args.ZipPath))
             throw new Exception("zipPath is required.");

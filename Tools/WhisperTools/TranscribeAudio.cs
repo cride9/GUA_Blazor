@@ -8,7 +8,7 @@ public class TranscribeAudio : AITool<TranscribeArguments>
     public TranscribeAudio(string sessionId) : base(sessionId) { }
     private static readonly HttpClient _http = new();
 
-    protected override async Task<string> ExecuteAsync(TranscribeArguments args)
+    protected override async Task<object?> ExecuteAsync(TranscribeArguments args)
     {
         var format = args.Format ?? "srt";
         var language = args.Language ?? "en";

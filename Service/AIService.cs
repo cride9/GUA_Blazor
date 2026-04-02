@@ -48,14 +48,15 @@ public class AIService
     public AIService(string sessionId)
     {
         _sessionId = sessionId;
-        _api = new TornadoApi(new Uri("http://26.86.240.240:8080"));
+        _api = new TornadoApi(new Uri("https://api.deepseek.com"), Environment.GetEnvironmentVariable("DEEPSEEK")!);
         _conversation = _api.Chat.CreateConversation(new ChatRequest()
         {
             Messages = [
                 new LlmTornado.Chat.ChatMessage(ChatMessageRoles.System, Instructions.BasicInstruction)
             ],
             ToolChoice = OutboundToolChoice.None,
-            ParallelToolCalls = true
+            ParallelToolCalls = true,
+            Model = "deepseek-chat"
         });
 
         _sessionStore = new();
@@ -84,6 +85,7 @@ public class AIService
             ["unzip_file"] = new UnzipFile(_sessionId),
             ["create_pdf"] = new CreatePdf(_sessionId),
             ["git_ingest"] = new GitIngestTool(),
+            ["browser_use"] = new BrowserUseTool(),
         };
     }
 
@@ -104,6 +106,7 @@ public class AIService
         {
             Messages = messages,
             ToolChoice = OutboundToolChoice.None,
+            Model = "deepseek-chat"
         });
 
         return _conversation.StreamResponseRich(CreateHandler(onResponse, _conversation, null));
@@ -131,6 +134,7 @@ public class AIService
             InvokeClrToolsAutomatically = false,
             ToolChoice = OutboundToolChoice.Auto,
             ParallelToolCalls = true,
+            Model = "deepseek-chat"
         });
 
         var stopSignal = new StopSignal();
@@ -186,15 +190,30 @@ public class AIService
                 try
                 {
                     var result = await tool.ExecuteFunctionAsync(call);
-                    call.Result = new FunctionResult(call, result, null);
+
+                    if (result is BrowserUseOutput buo &&
+                        buo.BrowserState?.ScreenshotBase64 is { Length: > 0 } b64)
+                    {
+                        call.Resolve([
+                            new FunctionResultBlockImage(new FunctionResultBlockImageSourceBase64{
+                                Data = b64,
+                                MediaType = buo.BrowserState.ScreenshotMime!
+                            }),
+                            new FunctionResultBlockText(buo.ActionResult!)
+                        ]);
+                    }
+                    else
+                    {
+                        call.Result = new FunctionResult(call, result, null);
+                    }
                 } catch (Exception e)
                 {
-                    call.Result = new FunctionResult(call, e.Message, null);
+                    call.Result = new FunctionResult(call, e.Message, false);
                 }
             }
             else
             {
-                call.Result = new FunctionResult(call, "Function not found", null);
+                call.Result = new FunctionResult(call, "Function not found", false);
             }
         }
     }

@@ -14,7 +14,7 @@ public class MergeAudio : AITool<MergeAudioArguments>
 {
     public MergeAudio(string sessionId) : base(sessionId) { }
 
-    protected override async Task<string> ExecuteAsync(MergeAudioArguments args)
+    protected override async Task<object?> ExecuteAsync(MergeAudioArguments args)
     {
         var outputPath = Sandbox.Resolve(args.OutputFilename ?? "merged_audio.wav", SessionId);
         var listPath = Sandbox.Resolve("concat_list.txt", SessionId);

@@ -8,7 +8,7 @@ public class BurnSubtitles : AITool<BurnSubtitlesArguments>
 {
     public BurnSubtitles(string sessionId) : base(sessionId) { }
 
-    protected override async Task<string> ExecuteAsync(BurnSubtitlesArguments args)
+    protected override async Task<object?> ExecuteAsync(BurnSubtitlesArguments args)
     {
         var color = (args.Color ?? "yellow").ToLowerInvariant() switch
         {

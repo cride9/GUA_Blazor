@@ -13,7 +13,7 @@ public class MergeAudioWithVideo : AITool<MergeAudioWithVideoArguments>
 {
     public MergeAudioWithVideo(string sessionId) : base(sessionId) { }
 
-    protected override async Task<string> ExecuteAsync(MergeAudioWithVideoArguments args)
+    protected override async Task<object?> ExecuteAsync(MergeAudioWithVideoArguments args)
     {
         var outputPath = Sandbox.Resolve(args.OutputFilename ?? "final_video.mp4", SessionId);
         var videoPath = Sandbox.Resolve(args.VideoPath!, SessionId);

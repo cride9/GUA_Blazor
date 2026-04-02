@@ -15,7 +15,7 @@ public static class GitIngest
     ///   https://github.com/owner/repo/tree/branch
     ///   owner/repo
     /// </summary>
-    public static async Task<string> IngestAsync(string githubUrl, string? githubToken = null)
+    public static async Task<object?> IngestAsync(string githubUrl, string? githubToken = null)
     {
         var (owner, repo, branch) = ParseUrl(githubUrl);
 

@@ -5,6 +5,6 @@ namespace GUA_Blazor.Tools;
 
 public interface IAITool
 {
-    Task<string> ExecuteFunctionAsync(FunctionCall fn);
+    Task<object?> ExecuteFunctionAsync(FunctionCall fn);
     ToolFunction GetToolFunction();
 }

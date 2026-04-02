@@ -15,16 +15,16 @@ public abstract class AITool<T> : IAITool
         SessionId = sessionId;
     }
 
-    public Task<string> ExecuteFunctionAsync(FunctionCall fn)
+    public Task<object?> ExecuteFunctionAsync(FunctionCall fn)
     {
         var args = JsonSerializer.Deserialize<T>(fn.Arguments!);
         return ExecuteAsync(args!);
     }
 
-    protected virtual Task<string> ExecuteAsync(T args)
+    protected virtual Task<object?> ExecuteAsync(T args)
         => Task.Run(() => Execute(args));
 
-    protected virtual string Execute(T args)
+    protected virtual object? Execute(T args)
         => throw new NotImplementedException();
 
     public abstract ToolFunction GetToolFunction();

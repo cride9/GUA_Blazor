@@ -15,7 +15,7 @@ public class TextToSpeech : AITool<GenerateScriptArguments>
 
     public TextToSpeech(string sessionId) : base(sessionId) { }
 
-    protected override async Task<string> ExecuteAsync(GenerateScriptArguments args)
+    protected override async Task<object?> ExecuteAsync(GenerateScriptArguments args)
     {
         if (args.Lines == null || !args.Lines.Any())
             throw new Exception("No script lines provided.");

@@ -5,7 +5,7 @@ namespace GUA_Blazor.Tools.Web;
 
 public class ScrapeUrl : AITool<ScrapeUrlArguments>
 {
-    protected override async Task<string> ExecuteAsync(ScrapeUrlArguments args)
+    protected override async Task<object?> ExecuteAsync(ScrapeUrlArguments args)
     {
         if (string.IsNullOrWhiteSpace(args.Url))
             throw new Exception("URL is required.");

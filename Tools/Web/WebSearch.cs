@@ -5,7 +5,7 @@ namespace GUA_Blazor.Tools.Web;
 
 public class WebSearch : AITool<WebSearchArguments>
 {
-    protected override async Task<string> ExecuteAsync(WebSearchArguments args)
+    protected override async Task<object?> ExecuteAsync(WebSearchArguments args)
     {
         if (string.IsNullOrWhiteSpace(args.Query))
             throw new Exception("Query is required.");

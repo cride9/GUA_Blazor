@@ -8,7 +8,7 @@ public class GitIngestTool : AITool<GitIngestArguments>
 {
     public override ToolFunction GetToolFunction() => new ToolFunction(
             "git_ingest",
-            "Ingests a github repository. Use this to analyze a whole repo instantly",
+            "Ingests a github repository. Use this to analyze a whole repo instantly. THIS USES A LOT OF CONTEXT ONLY USE IF SPECIFICALLY ASKED TO",
             new
             {
                 type = "object",
@@ -19,7 +19,7 @@ public class GitIngestTool : AITool<GitIngestArguments>
                 required = new List<string> { "github_url", "repository link" }
             });
 
-    protected override Task<string> ExecuteAsync(GitIngestArguments args)
+    protected override Task<object?> ExecuteAsync(GitIngestArguments args)
     {
         return GitIngest.IngestAsync(args.GithubUrl);
     }

@@ -10,10 +10,10 @@ public class ZipDirectory : AITool<ZipDirectoryArguments>
 {
     public ZipDirectory(string sessionId) : base(sessionId) { }
 
-    protected override Task<string> ExecuteAsync(ZipDirectoryArguments args)
+    protected override Task<object?> ExecuteAsync(ZipDirectoryArguments args)
         => Task.Run(() => Execute(args));
 
-    protected override string Execute(ZipDirectoryArguments args)
+    protected override object? Execute(ZipDirectoryArguments args)
     {
         if (string.IsNullOrEmpty(args.SourcePath) || string.IsNullOrEmpty(args.DestinationZipName))
             throw new Exception("sourcePath and destinationZipName are required.");
