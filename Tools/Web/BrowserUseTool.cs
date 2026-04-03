@@ -29,6 +29,7 @@ public class BrowserUseTool : AITool<BrowserUseArguments>
                 "refresh" => await browser.RefreshAsync(),
                 "wait" => await browser.WaitAsync(args.Seconds),
                 "extract_content" => await browser.ExtractContentAsync(),
+                "click_coordinates" => await browser.ClickCoordinatesAsync(args.X, args.Y),
                 _ => throw new Exception($"Unknown action: {args.Action}")
             };
         }
@@ -38,7 +39,7 @@ public class BrowserUseTool : AITool<BrowserUseArguments>
         }
 
         // After every action, return the result PLUS the new state of the browser
-        bool includeScreenshot = args.Action.ToLower() is "go_to_url" or "go_back" or "refresh" or "extract_content";
+        bool includeScreenshot = args.Action.ToLower() is "extract_content" or "go_to_url";
         var currentState = await browser.GetCurrentStateAsync(includeScreenshot) as BrowserState;
 
         if (currentState is null)
@@ -65,14 +66,16 @@ public class BrowserUseTool : AITool<BrowserUseArguments>
                 {
                     type = "string",
                     description = "The browser action to perform.",
-                    @enum = new[] { "go_to_url", "click_element", "input_text", "scroll_down", "scroll_up", "send_keys", "go_back", "refresh", "wait", "extract_content" }
+                    @enum = new[] { "go_to_url", "click_element", "click_coordinates", "input_text", "scroll_down", "scroll_up", "send_keys", "go_back", "refresh", "wait", "extract_content" }
                 },
                 url = new { type = "string", description = "URL for 'go_to_url' action." },
                 index = new { type = "integer", description = "Element index for 'click_element' or 'input_text' actions." },
                 text = new { type = "string", description = "Text for 'input_text' action." },
                 scroll_amount = new { type = "integer", description = "Pixels to scroll for 'scroll_down' or 'scroll_up'." },
                 keys = new { type = "string", description = "Keys to send for 'send_keys' action." },
-                seconds = new { type = "integer", description = "Seconds to wait for 'wait' action." }
+                seconds = new { type = "integer", description = "Seconds to wait for 'wait' action." },
+                x = new { type = "number", description = "X coordinate for 'click_coordinates' action. Only use this if the normal click is failing" },
+                y = new { type = "number", description = "Y coordinate for 'click_coordinates' action. Only use this if the normal click is failing" }
             },
             required = new List<string> { "action" }
         });
@@ -90,22 +93,64 @@ public class BrowserSession
     private readonly SemaphoreSlim _initLock = new(1, 1);
 
     private const string BuildInteractiveElementsJs = @"
-        () => {
-            const elements = Array.from(document.querySelectorAll('button, a, input, select, textarea, [role=""button""], [tabindex]:not([tabindex=""-1""])'))
-                .filter(el => {
-                    const rect = el.getBoundingClientRect();
-                    return rect.width > 0 && rect.height > 0 && window.getComputedStyle(el).visibility !== 'hidden';
-                });
+    () => {
+        const interactables = 'button, a, input, select, textarea, iframe, canvas, [role=""button""], [role=""checkbox""], [tabindex]:not([tabindex=""-1""])';
+        const elements = Array.from(document.querySelectorAll('*'))
+            .filter(el => {
+                const rect = el.getBoundingClientRect();
+                const style = window.getComputedStyle(el);
+                
+                // Must have physical size and be visible
+                if (rect.width <= 2 || rect.height <= 2 || style.visibility === 'hidden' || style.opacity === '0' || style.display === 'none') return false;
+
+                if (el.matches(interactables)) return true;
+                
+                // Catch custom elements
+                if (style.cursor === 'pointer') return true;
+                
+                const cName = (typeof el.className === 'string') ? el.className.toLowerCase() : '';
+                if (cName.includes('captcha') || cName.includes('checkbox') || cName.includes('turnstile')) return true;
+
+                return false;
+            });
+        
+        elements.forEach((el, index) => el.setAttribute('data-browser-use-index', index));
+        
+        return elements.map((el, index) => {
+            // 1. Tag & Class
+            let tag = el.tagName.toLowerCase();
+            if (typeof el.className === 'string' && el.className.trim() !== '') {
+                const classes = el.className.split(' ').filter(c => c.trim() !== '').slice(0, 2).join('.');
+                if (classes) tag += `.${classes}`;
+            }
+
+            // 2. Direct Text
+            let text = el.getAttribute('aria-label') || el.getAttribute('title') || el.value || el.innerText || '';
+            text = text.replace(/\s+/g, ' ').trim().substring(0, 40);
+
+            // 3. Parent Context (If the element is empty, what does the surrounding text say?)
+            let contextStr = '';
+            if (!text && el.parentElement) {
+                let pText = el.parentElement.innerText || '';
+                pText = pText.replace(/\s+/g, ' ').trim().substring(0, 40);
+                if (pText) contextStr = `(Context: ""${pText}"")`;
+            }
+
+            let displayLabel = text ? `""${text}""` : contextStr ? contextStr : '(empty)';
+
+            // 4. Coordinates and Size
+            const rect = el.getBoundingClientRect();
+            const posX = Math.round(rect.left + rect.width / 2);
+            const posY = Math.round(rect.top + rect.height / 2);
+            const width = Math.round(rect.width);
+            const height = Math.round(rect.height);
             
-            elements.forEach((el, index) => el.setAttribute('data-browser-use-index', index));
-            
-            return elements.map((el, index) => {
-                let text = el.innerText || el.value || el.getAttribute('aria-label') || el.placeholder || el.tagName.toLowerCase();
-                text = text.replace(/\s+/g, ' ').trim().substring(0, 50);
-                return `[${index}]<${el.tagName.toLowerCase()}>${text}</>`;
-            }).join('\n');
-        }
-    ";
+            // Output example: [6] <div.captcha-box> (Context: ""I'm not a robot"") [Size: 28x28] [x:511, y:173]
+            return `[${index}] <${tag}> ${ displayLabel}
+[Size: ${width}x${height}] [x:${posX}, y:${ posY}]`;
+        }).join('\n');
+    }
+";
 
     private BrowserSession() { }
 
@@ -127,7 +172,8 @@ public class BrowserSession
 
             var context = await _browser.NewContextAsync(new BrowserNewContextOptions
             {
-                ViewportSize = new ViewportSize { Width = 1280, Height = 800 }
+                ViewportSize = new ViewportSize { Width = 1920, Height = 1080 },
+                
             });
 
             _page = await context.NewPageAsync();
@@ -143,21 +189,32 @@ public class BrowserSession
         if (string.IsNullOrWhiteSpace(url)) throw new Exception("URL is required.");
         if (!url.StartsWith("http")) url = "https://" + url;
 
-        await _page!.GotoAsync(url, new PageGotoOptions { WaitUntil = WaitUntilState.Load });
+        await _page!.GotoAsync(url, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
+        Task.Delay(2000).Wait(); // Give the page a moment to settle after load
         return $"Navigated to {url}";
     }
 
     public async Task<string> ClickElementAsync(int? index)
     {
         if (index == null) throw new Exception("Index is required.");
-        var success = await _page!.EvaluateAsync<bool>($@"() => {{
-            const el = document.querySelector(`[data-browser-use-index=""{index}""]`);
-            if(el) {{ el.click(); return true; }} return false;
-        }}");
 
-        if (!success) throw new Exception($"Element [{index}] not found.");
-        await WaitForNetworkIdle();
-        return $"Clicked element [{index}]";
+        try
+        {
+            var locator = _page!.Locator($"[data-browser-use-index=\"{index}\"]");
+
+            await locator.ClickAsync(new LocatorClickOptions
+            {
+                Timeout = 2000,
+                Force = true,
+            });
+
+            await WaitForNetworkIdle();
+            return $"Clicked element [{index}] successfully.";
+        }
+        catch (Exception ex)
+        {
+            return $"Failed to click element [{index}]. The element may be inside an iframe, canvas, or re-rendered. STRATEGY: Look at the [x, y] coordinates of the element in the state and use 'click_coordinates' instead.";
+        }
     }
 
     public async Task<string> InputTextAsync(int? index, string? text)
@@ -232,29 +289,25 @@ public class BrowserSession
 
         string interactiveElements = await _page.EvaluateAsync<string>(BuildInteractiveElementsJs);
 
-        // Strip elements that have no useful label (just tag names like "div", "span", "button")
-        var usefulLines = (interactiveElements?.Split('\n') ?? [])
-            .Where(line => {
-                // Keep lines where the text inside <tag>...</> is more than just a tag name or empty
-                var match = System.Text.RegularExpressions.Regex.Match(line, @"<\w+>(.+)<\/>");
-                return match.Success && match.Groups[1].Value.Length > 2;
-            })
-            .ToArray();
+        var lines = (interactiveElements?.Split('\n', StringSplitOptions.RemoveEmptyEntries) ?? []).ToArray();
 
-        interactiveElements = string.Join('\n', usefulLines.Length > 50 ? usefulLines[..50] : usefulLines)
-            + (usefulLines.Length > 50 ? $"\n... ({usefulLines.Length - 50} more elements not shown)" : "");
-
-        // Truncate to first 50 elements to avoid flooding context
-        var lines = interactiveElements?.Split('\n') ?? [];
         if (lines.Length > 50)
-            interactiveElements = string.Join('\n', lines[..50]) + $"\n... ({lines.Length - 50} more elements not shown, scroll to reveal)";
+        {
+            interactiveElements = string.Join('\n', lines[..50]) + $"\n... ({lines.Length - 50} more elements not shown)";
+        }
+        else
+        {
+            interactiveElements = string.Join('\n', lines);
+        }
 
         var state = new BrowserState()
         {
             Url = _page.Url,
             Title = await _page.TitleAsync(),
-            InteractiveElements = interactiveElements!,
-            Instructions = "Use the index in the brackets [index] for your next 'click_element' or 'input_text' action.",
+            InteractiveElements = interactiveElements,
+
+            Instructions = "DO NOT guess indexes. Read the tags carefully. To solve custom captchas, look for an element with '.checkbox' in its tag (e.g., <div.captcha-box-checkbox>) and click its index. If you clicked the wrong thing and left the page, use the 'go_back' action.",
+
             ScreenshotBase64 = null,
             ScreenshotMime = null
         };
@@ -264,7 +317,8 @@ public class BrowserSession
             var screenshotBytes = await _page.ScreenshotAsync(new PageScreenshotOptions
             {
                 Type = ScreenshotType.Jpeg,
-                Quality = 40
+                Quality = 75,
+                FullPage = false,
             });
             state.ScreenshotMime = "image/jpeg";
             state.ScreenshotBase64 = $"data:{state.ScreenshotMime};base64,{Convert.ToBase64String(screenshotBytes)}";
@@ -280,6 +334,30 @@ public class BrowserSession
             await _page!.WaitForLoadStateAsync((LoadState?)WaitUntilState.NetworkIdle, new PageWaitForLoadStateOptions { Timeout = 3000 });
         }
         catch { /* Ignore timeout if network isn't completely idle */ }
+    }
+
+    public async Task<string> ClickCoordinatesAsync(double? x, double? y)
+    {
+        if (x == null || y == null) throw new Exception("X and Y coordinates are required.");
+
+        try
+        {
+            await _page!.Mouse.MoveAsync((float)x, (float)y, new MouseMoveOptions { Steps = 5 });
+            await Task.Delay(Random.Shared.Next(100, 250));
+
+            await _page!.Mouse.DownAsync();
+
+            await Task.Delay(Random.Shared.Next(50, 150));
+
+            await _page!.Mouse.UpAsync();
+
+            await WaitForNetworkIdle();
+            return $"Successfully clicked coordinates X:{x}, Y:{y}";
+        }
+        catch (Exception ex)
+        {
+            return $"Failed to click coordinates: {ex.Message}";
+        }
     }
 }
 
@@ -305,6 +383,12 @@ public class BrowserUseArguments
 
     [JsonPropertyName("seconds")]
     public int? Seconds { get; set; }
+
+    [JsonPropertyName("x")]
+    public double? X { get; set; }
+
+    [JsonPropertyName("y")]
+    public double? Y { get; set; }
 }
 
 public sealed class BrowserUseOutput

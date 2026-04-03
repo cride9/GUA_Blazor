@@ -11,7 +11,6 @@ using LlmTornado.ChatFunctions;
 using LlmTornado.Code;
 using LlmTornado.Common;
 using LlmTornado.Images;
-using Microsoft.AspNetCore.Session;
 
 namespace GUA_Blazor.Service;
 
@@ -48,7 +47,7 @@ public class AIService
     public AIService(string sessionId)
     {
         _sessionId = sessionId;
-        _api = new TornadoApi(new Uri("https://api.deepseek.com"), Environment.GetEnvironmentVariable("DEEPSEEK")!);
+        _api = new TornadoApi(new Uri("http://26.86.240.240:8080/"), Environment.GetEnvironmentVariable("DEEPSEEK"));
         _conversation = _api.Chat.CreateConversation(new ChatRequest()
         {
             Messages = [
@@ -146,7 +145,7 @@ public class AIService
             bool needsPrompt = turn > 0 && lastMessage?.Role != ChatMessageRoles.Tool;
 
             if (needsPrompt)
-                _conversation.AppendUserInputWithName("agent_helper", "continue or stop with the tool");
+                _conversation.AppendUserInputWithName("agent_helper", "if your task is done call stop_loop to end the current session");
 
             await _conversation.StreamResponseRich(handler);
             onResponse("//NEW_TURN//");
@@ -163,7 +162,7 @@ public class AIService
             },
             FunctionCallHandler = async (calls) =>
             {
-                await ResolveFunctions(calls, onResponse);
+                await ResolveFunctions(calls, onResponse, conversation);
             },
             AfterFunctionCallsResolvedHandler = async (results, currentHandler) =>
             {
@@ -178,7 +177,7 @@ public class AIService
         };
     }
 
-    private async Task ResolveFunctions(List<FunctionCall> calls, Action<string> onResponse)
+    private async Task ResolveFunctions(List<FunctionCall> calls, Action<string> onResponse, Conversation conversation)
     {
         foreach (var call in calls)
         {
@@ -191,16 +190,24 @@ public class AIService
                 {
                     var result = await tool.ExecuteFunctionAsync(call);
 
-                    if (result is BrowserUseOutput buo &&
-                        buo.BrowserState?.ScreenshotBase64 is { Length: > 0 } b64)
+                    if (result is BrowserUseOutput buo)
                     {
-                        call.Resolve([
-                            new FunctionResultBlockImage(new FunctionResultBlockImageSourceBase64{
-                                Data = b64,
-                                MediaType = buo.BrowserState.ScreenshotMime!
-                            }),
-                            new FunctionResultBlockText(buo.ActionResult!)
-                        ]);
+                        StringWriter sw = new();
+                        await sw.WriteLineAsync($"[RESULT]: {buo.ActionResult}");
+                        await sw.WriteLineAsync($"[INTERACTIVE ELEMENTS]: {buo.BrowserState?.InteractiveElements ?? "No clickables try extracting"}");
+                        await sw.WriteLineAsync($"[INSTRUCTIONS]: {buo.BrowserState?.Instructions ?? "No instructions"}");
+
+                        call.Result = new FunctionResult(call, sw.ToString(), null);
+                        if (buo.BrowserState?.ScreenshotBase64 is { Length: > 0 } b64)
+                        {
+                            conversation.AppendMessage(new LlmTornado.Chat.ChatMessage(ChatMessageRoles.User, [
+                                new ChatMessagePart(b64, ImageDetail.Auto),
+                                new ChatMessagePart($"[Browser state screenshot attached. You can use this to inform your next actions.]"),
+                            ])
+                            {
+                                Name = "agent_helper"
+                            });
+                        }
                     }
                     else
                     {

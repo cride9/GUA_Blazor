@@ -1,317 +1,131 @@
-# GUA (General Usage Agent)
+# 🤖 GUA (General Usage Agent)
 
-An intelligent, autonomous AI assistant built on **Blazor WebAssembly** with full support for file system operations, terminal commands, web scraping, audio/video processing, and multi-turn agent workflows.
+GUA is a powerful, autonomous AI assistant built on **Blazor Server (.NET 10)**. It serves as a multi-modal orchestrator capable of managing file systems, executing terminal commands, browsing the web, and processing media (TTS/Transcription) through a unified agentic interface.
+
+[![Changelog](https://img.shields.io/badge/updates-changelog-blue)](changelog.md)
+
+---
+
+## 📑 Table of Contents
+1. [🚀 Features](#-features)
+2. [🧠 Model Optimization](#-model-optimization)
+3. [📦 Installation Guide](#-installation-guide)
+    - [Playwright Setup](#1-playwright-browser-automation)
+    - [llama.cpp Setup](#2-llamacpp-inference-server)
+    - [whisper.cpp Setup](#3-whispercpp-transcription-server)
+    - [Kokoro TTS Setup](#4-kokoro-tts-python)
+4. [⚠️ Limitations & Known Issues](#️-limitations--known-issues)
+5. [🛠️ Tools Reference](#️-tools-reference)
+6. [📁 Project Structure](#-project-structure)
 
 ---
 
 ## 🚀 Features
 
-### Core Capabilities
+- **Autonomous Agent Mode**: Multi-turn reasoning loops (up to 50 turns) using tool-calling to solve complex tasks.
+- **Persistent Terminal**: Real-time shell execution with session persistence across messages.
+- **Deep Web Research**: Google Search and Playwright-powered browser automation.
+- **Media Suite**: 
+  - Voice cloning/Synthesis via Kokoro.
+  - Video-to-audio extraction and burning subtitles with FFmpeg.
+  - High-accuracy transcription via Whisper.
+- **Repository Ingestion**: Analyze entire GitHub repositories in one go using the `GitIngest` tool.
+- **Modern UI**: Dark-themed Blazor interface with markdown support and collapsible tool-execution logs.
 
-- **AI-Powered Assistant**: Chat interface with support for both basic and agent modes
-- **File System Tools**: Create, read, edit, delete, move, rename, search, and zip files within a secure sandbox
-- **Terminal Execution**: Run shell commands with persistent sessions and real-time output monitoring
-- **Web Tools**: Google search and URL scraping (HTML/PDF support)
-- **Audio/Video Processing**: 
-  - Extract audio from videos
-  - Transcribe audio using Whisper
-  - Burn subtitles into videos with custom styling
-  - Text-to-speech with multiple voice options
-- **PDF Generation**: Create PDFs from markdown content
-- **Git Repository Ingestion**: Analyze entire GitHub repositories instantly
-- **Session Management**: Multiple independent chat sessions with isolated sandboxes
+---
 
-### Agent Modes
+## 🧠 Model Optimization
 
-**Basic Mode**: Standard conversational AI for questions and simple tasks
+GUA is specifically tuned for high-parameter local models and state-of-the-art APIs:
 
-**Agent Mode**: Autonomous multi-step task execution with:
-- Tool usage for complex operations
-- Planning and verification of each step
-- Automatic parallel tool calls
-- Support for up to 50 turns per session
-- Graceful handling of errors and edge cases
+- **Primary Optimization**: **Qwen3.5-35B-A3B** (Optimized for reasoning and tool-calling accuracy).
+- **Secondary Support**: Fully compatible with **DeepSeek-V3/R1** via API.
+- **Local Inference**: Designed to work seamlessly with `llama-server.exe` providing the OpenAI-compatible endpoint.
+
+---
+
+## 📦 Installation Guide
+
+### 1. Playwright (Browser Automation)
+Used for the `browser_use` tool to navigate real websites.
+```bash
+# Install the Playwright CLI tool
+dotnet tool install --global Microsoft.Playwright.CLI
+
+# Build the project to generate the executable
+dotnet build
+
+# Install the required browser (Chromium)
+# Note: Check your bin path (net10.0)
+pwsh bin/Debug/net10.0/playwright.ps1 install chromium
+```
+
+### 2. llama.cpp (Inference Server)
+GUA requires an OpenAI-compatible API endpoint.
+1.  **Download**: [llama.cpp Releases](https://github.com/ggerganov/llama.cpp/releases).
+2.  **Model**: Download the GGUF for `Qwen3.5-35B-A3B`.
+3.  **Run**:
+    ```bash
+    llama-server.exe -m path/to/Qwen3.5-35B-A3B.gguf --port 8080 -c 262144
+    ```
+
+### 3. whisper.cpp (Transcription Server)
+1.  **Download**: [whisper.cpp Releases](https://github.com/ggerganov/whisper.cpp).
+2.  **Model**: Use `ggml-large-v3.bin`.
+3.  **Run**:
+    ```bash
+    whisper-server.exe -m models/ggml-large-v3.bin --port 8081
+    ```
+
+### 4. Kokoro TTS (Python)
+The text-to-speech service requires the Kokoro Python implementation.
+1.  Navigate to your Kokoro folder.
+2.  Setup: `python -m venv venv` and `pip install flask kokoro soundfile`.
+3.  Run the server on port **8082**.
+
+---
+
+## ⚠️ Limitations & Known Issues
+
+### Current Limitations
+- **No Persistence**: There is no database or LocalStorage implementation. Refreshing the browser will wipe the current chat history and session state.
+- **No Multi-user**: The application is designed for local, single-user use. Session sandboxing is internal but not authenticated.
+- **UI Desyncs**: The UI may occasionally flicker or desync during high-speed agent streaming or complex parallel tool calls.
+
+### Known Technical Issues
+- **Zombie Terminal Processes**: If the application crashes or is force-closed during a command execution, the underlying `cmd.exe` or `bash` process may remain running in the background and must be closed manually via Task Manager.
+- **Playwright Cleanup**: The Chromium window opened by Playwright often stays open after the main program ends. These windows must be closed manually.
 
 ---
 
 ## 🛠️ Tools Reference
 
-### File System Tools
-
-| Tool | Description |
-|------|-------------|
-| `create_file` | Create new text-based files |
-| `read_file` | Read files with line number support |
-| `edit_file` | Replace text blocks with diff preview and backup options |
-| `delete_file` | Delete files or directories (dry-run supported) |
-| `move_file` | Move files/directories with overwrite option |
-| `rename_file` | Rename files/directories in place |
-| `search_in_files` | Search text or regex patterns across files |
-| `list_directory` | List files and directories with tree view |
-| `zip_directory` | Create zip archives of files or directories |
-
-### Terminal Tools
-
-| Tool | Description |
-|------|-------------|
-| `run_command` | Execute shell commands asynchronously |
-| `read_terminal_output` | Get command output from terminal sessions |
-
-### Audio/Video Tools
-
-| Tool | Description |
-|------|-------------|
-| `extract_audio` | Extract audio from video files (MP4, MKV, AVI, MOV) |
-| `transcribe_audio` | Transcribe audio using Whisper (plain/SRT/VTT formats) |
-| `burn_subtitles` | Burn SRT subtitles into video with custom styling |
-| `text_to_speech` | Convert text to speech using Kokoro TTS |
-| `merge_audio` | Merge multiple WAV files using FFmpeg |
-| `merge_audio_with_video` | Combine TTS audio with video (loops video if needed) |
-
-### Web Tools
-
-| Tool | Description |
-|------|-------------|
-| `web_search` | Search Google via Custom Search API |
-| `scrape_url` | Extract text from HTML pages and PDFs |
-| `git_ingest` | Ingest GitHub repositories for analysis |
-
-### Document Tools
-
-| Tool | Description |
-|------|-------------|
-| `create_pdf` | Generate PDFs from markdown content |
+| Category | Tools |
+| :--- | :--- |
+| **Filesystem** | `create_file`, `read_file`, `edit_file`, `delete_file`, `list_directory`, `zip_directory`, `unzip_file`, `create_pdf` |
+| **Terminal** | `run_command`, `read_terminal_output` |
+| **Web** | `web_search`, `scrape_url`, `browser_use`, `git_ingest` |
+| **Media** | `extract_audio`, `transcribe_audio`, `burn_subtitles`, `text_to_speech`, `merge_audio` |
 
 ---
 
 ## 📁 Project Structure
 
-```
+```text
 GUA_Blazor/
-├── Components/
-│   ├── Layout/          # Blazor layout components and styles
-│   └── Pages/           # Main chat interface
-├── Helper/
-│   └── SessionSandbox.cs    # Sandbox path management
-├── Models/
-│   ├── ChatMessage.cs     # Message data model
-│   ├── ChatSession.cs     # Session management
-│   ├── Instructions.cs    # System prompts
-│   └── SessionFactory.cs  # Session creation
-├── Service/
-│   ├── AIService.cs       # Main AI orchestration
-│   ├── GitIngest.cs       # GitHub repo ingestion
-│   ├── KokoroService.cs   # TTS service wrapper
-│   └── WhisperService.cs  # Transcription service wrapper
-├── Tools/
-│   ├── Filesystem/        # File operations
-│   ├── Terminal/          # Command execution
-│   ├── TTS/               # Text-to-speech
-│   ├── Web/               # Web scraping & search
-│   └── WhisperTools/      # Audio/video processing
-├── wwwroot/
-│   ├── app.css            # Base styles
-│   ├── app.js             # Client utilities
-│   └── style.css          # Main UI styling
-└── run_all_servers.bat    # Windows startup script
+├── Components/       # UI Layer (Pages, Layouts, Modals)
+├── Helper/           # SessionSandbox (Path security logic)
+├── Models/           # Data objects and System Instructions
+├── Service/          # AIService (Orchestrator) and Media Wrappers
+├── Tools/            # AI Tool Definitions
+│   ├── Filesystem/   # File IO
+│   ├── Terminal/     # Shell Execution
+│   ├── Web/          # Playwright & Scrapers
+│   └── TTS/          # Audio/Video processing
+├── wwwroot/          # Styles and Client-side JS
+└── run_all_servers.bat # Batch script for local dependencies
 ```
 
 ---
 
-## ⚙️ Setup & Installation
-
-### Prerequisites
-
-- .NET 10.0 SDK
-- FFmpeg (for audio/video operations)
-- Python 3.x (for Kokoro TTS server - optional)
-- Access to local AI model servers (recommended)
-
-### Running the Application
-
-1. **Build and run the Blazor app**:
-   ```bash
-   dotnet build
-   dotnet run
-   ```
-
-2. **Optional: Run supporting services** (Windows):
-   ```batch
-   run_all_servers.bat
-   ```
-
-This script starts:
-- Kokoro TTS server (Python-based)
-- Llama inference server (ggml-based)
-- Whisper transcription server
-
-### Environment Configuration
-
-Set the following environment variables for web search:
-
-```bash
-export google_api="YOUR_GOOGLE_API_KEY"
-export google_engine="YOUR_SEARCH_ENGINE_ID"
-```
-
----
-
-## 🔧 Configuration
-
-### Model Settings
-
-The application uses LlmTornado for model communication. Default server:
-- URL: `http://26.86.240.240:8080`
-- Update in `AIService.cs` if using local models
-
-### System Instructions
-
-Customize agent behavior in `Instructions.cs`:
-
-- **BasicInstruction**: For standard chat mode
-- **AgentInstruction**: For autonomous agent mode with tool usage
-
-### Session Storage
-
-Sessions are stored in the `sessions/` directory with isolated workspaces:
-- Each session gets its own sandbox folder
-- Uploaded files are stored in `sessions/{sessionId}/work/`
-- Maximum file size: 500MB
-- Maximum concurrent uploads: 10 files
-
----
-
-## 🎨 UI Features
-
-### Dark Theme
-- Modern dark interface with accent color (#d4a853)
-- Responsive design (mobile, tablet, desktop)
-- Smooth animations and transitions
-
-### Chat Interface
-- Sidebar with session history
-- Markdown rendering with syntax highlighting
-- Tool call visualization with collapsible JSON
-- File attachment support with image previews
-- Agent mode toggle
-- Auto-resizing text input
-
-### Message Display
-- User and AI avatars
-- Typing indicators
-- Tool call dropdowns
-- File preview chips
-- Image lightbox viewer
-
----
-
-## 🔒 Security Features
-
-- **Sandbox Isolation**: Each chat session operates in an isolated directory
-- **Path Validation**: Prevents directory traversal attacks
-- **Command Blocking**: Blocks dangerous shell commands
-- **File Size Limits**: Prevents resource exhaustion
-- **Circuit Breaker**: Automatic reconnection with retry logic
-
----
-
-## 🤝 Using the Agent
-
-### Basic Chat
-1. Type your question or request
-2. Press Enter or click send
-3. Get instant response with markdown formatting
-
-### Agent Mode Tasks
-1. Toggle "Agent Mode" on
-2. Describe a multi-step task (e.g., "Create a Python script that analyzes logs and generates a report")
-3. The agent will:
-   - Plan the approach
-   - Execute tools sequentially
-   - Show tool calls for transparency
-   - Handle errors gracefully
-
-### Example Workflows
-
-**File Analysis**:
-```
-"Search for all TODO comments in *.cs files and list them"
-```
-
-**Code Generation**:
-```
-"Create a README.md for a new C# project with setup instructions"
-```
-
-**Media Processing**:
-```
-"Extract audio from video.mp4, transcribe it, and burn subtitles"
-```
-
-**Repository Analysis**:
-```
-"Analyze https://github.com/dotnet/runtime to find recent changes"
-```
-
----
-
-## 📦 Dependencies
-
-### NuGet Packages
-- `LlmTornado` (v3.8.54) - AI model communication
-- `Markdig` (v1.1.1) - Markdown parsing
-- `AngleSharp` (v1.4.0) - HTML parsing
-- `PdfPig` (v0.1.14) - PDF text extraction
-- `QuestPDF` (v2026.2.4) - PDF generation
-- `QuestPDF.Markdown` (v1.49.0) - Markdown to PDF
-
----
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**FFmpeg not found**:
-- Install FFmpeg and ensure it's in your PATH
-- Windows: Download from https://ffmpeg.org/download.html
-
-**TTS/Transcription fails**:
-- Ensure Kokoro (port 8082) and Whisper (port 8081) servers are running
-- Check `KokoroService.cs` and `WhisperService.cs` for correct URLs
-
-**Web search fails**:
-- Set `google_api` and `google_engine` environment variables
-- Verify API key has Custom Search API enabled
-
-**Session data not persisting**:
-- Check write permissions on `sessions/` directory
-- Ensure no antivirus is blocking file operations
-
----
-
-## 📝 License
-
-This project is provided as-is for educational and commercial use.
-
----
-
-## 🙏 Acknowledgments
-
-- **Blazor** - Web framework by Microsoft
-- **LlmTornado** - AI model client library
-- **Whisper** - Speech recognition by OpenAI
-- **Kokoro** - Text-to-speech engine
-- **QuestPDF** - Modern PDF generation library
-
----
-
-## 📞 Support
-
-For issues or questions:
-1. Check the troubleshooting section above
-2. Review the code comments in `Tools/` directory
-3. Examine `AIService.cs` for agent workflow details
-
----
-
-**Built with ❤️ using Blazor and modern AI technologies**
+**Built with ❤️ using .NET 10 and Blazor Server.**
