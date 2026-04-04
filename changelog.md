@@ -5,13 +5,13 @@ All notable changes to the **GUA (General Usage Agent)** project are documented 
 ## [1.4.0] - 2026-04-04
 
 ### ✨ Added
-* **Voice Messages**: Added TTS audio playback in chat with a custom interactive player (play/pause, progress, volume, waveform) (`<commit>`).
-* **AI Tooling**: Introduced `send_voice_message` tool for delivering generated audio to the UI (`<commit>`).
+* **Voice Messages**: Added TTS audio playback in chat with a custom interactive player (play/pause, progress, volume, waveform) (`bb5ff95`).
+* **AI Tooling**: Introduced `send_voice_message` tool for delivering generated audio to the UI (`bb5ff95`).
 
 ### 🔧 Improvements & Fixes
-* **UI Reactivity**: Implemented dynamic re-initialization of voice players for newly rendered messages (`<commit>`).
-* **Performance**: Added Base64 audio caching to reduce repeated file reads (`<commit>`).
-* **Cleanup**: Ensured proper disposal of audio instances via JS interop (`<commit>`).
+* **UI Reactivity**: Implemented dynamic re-initialization of voice players for newly rendered messages (`c8024d6`).
+* **Performance**: Added Base64 audio caching to reduce repeated file reads (`f57f926`).
+* **Cleanup**: Ensured proper disposal of audio instances via JS interop (`f57f926`).
 
 ---
 
