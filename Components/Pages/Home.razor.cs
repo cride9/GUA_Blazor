@@ -195,8 +195,10 @@ public partial class Home
                         {
                             currentAgentMessage.VoiceMessagePath = path;
                         }
+                        _shouldReinitVoicePlayers = true;
                     }
                     StateHasChanged();
+
                 });
             });
         }
@@ -222,6 +224,7 @@ public partial class Home
                         {
                             message.VoiceMessagePath = path;
                         }
+                        _shouldReinitVoicePlayers = true;
                     }
                     StateHasChanged();
                 });
