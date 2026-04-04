@@ -105,6 +105,22 @@ public partial class Home
                     }
 
                     currentAgentMessage.Content += chunk;
+
+                    // Check for voice message marker
+                    if (currentAgentMessage.Content.Contains("[VOICE_MESSAGE_SENT]"))
+                    {
+                        var markerIndex = currentAgentMessage.Content.IndexOf("[VOICE_MESSAGE_SENT]");
+                        var pathStart = markerIndex + "[VOICE_MESSAGE_SENT]".Length;
+                        var pathEnd = currentAgentMessage.Content.IndexOf('\n', pathStart);
+                        if (pathEnd < 0) pathEnd = currentAgentMessage.Content.Length;
+                        
+                        var path = currentAgentMessage.Content.Substring(pathStart, pathEnd - pathStart).Trim();
+                        if (!string.IsNullOrEmpty(path) && string.IsNullOrEmpty(currentAgentMessage.VoiceMessagePath))
+                        {
+                            currentAgentMessage.VoiceMessagePath = path;
+                        }
+                    }
+
                     StateHasChanged();
                 });
             });
@@ -117,6 +133,22 @@ public partial class Home
                 {
                     isLoading = false;
                     message.Content += chunk;
+
+                    // Check for voice message marker
+                    if (message.Content.Contains("[VOICE_MESSAGE_SENT]"))
+                    {
+                        var markerIndex = message.Content.IndexOf("[VOICE_MESSAGE_SENT]");
+                        var pathStart = markerIndex + "[VOICE_MESSAGE_SENT]".Length;
+                        var pathEnd = message.Content.IndexOf('\n', pathStart);
+                        if (pathEnd < 0) pathEnd = message.Content.Length;
+                        
+                        var path = message.Content.Substring(pathStart, pathEnd - pathStart).Trim();
+                        if (!string.IsNullOrEmpty(path) && string.IsNullOrEmpty(message.VoiceMessagePath))
+                        {
+                            message.VoiceMessagePath = path;
+                        }
+                    }
+
                     StateHasChanged();
                 });
             });
@@ -232,6 +264,18 @@ public partial class Home
             content = content[..start] + content[(end + "//TOOLCALL_END".Length)..];
         }
 
+        // Also strip the voice message marker from the visible text
+        while (true)
+        {
+            var start = content.IndexOf("[VOICE_MESSAGE_SENT]");
+            if (start < 0) break;
+
+            var end = content.IndexOf('\n', start);
+            if (end < 0) end = content.Length;
+
+            content = content[..start] + content[end..];
+        }
+
         return content.Trim();
     }
 
@@ -293,6 +337,22 @@ public partial class Home
             ".gif" => "image/gif",
             ".webp" => "image/webp",
             _ => "image/jpeg"
+        };
+
+        var bytes = File.ReadAllBytes(path);
+        return $"data:{mimeType};base64,{Convert.ToBase64String(bytes)}";
+    }
+
+    private string GetAudioDataUrl(string path)
+    {
+        if (!File.Exists(path)) return string.Empty;
+
+        var mimeType = Path.GetExtension(path).ToLowerInvariant() switch
+        {
+            ".mp3" => "audio/mpeg",
+            ".wav" => "audio/wav",
+            ".ogg" => "audio/ogg",
+            _ => "audio/wav"
         };
 
         var bytes = File.ReadAllBytes(path);

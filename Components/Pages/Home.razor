@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @using GUA_Blazor.Models
 @rendermode InteractiveServer
 @inject IJSRuntime JS
@@ -107,6 +107,13 @@
                             {
                                 <div class="bubble @(msg.IsUser ? "user-bubble" : "ai-bubble") markdown-body">
                                     @((MarkupString)RenderMarkdown(cleanContent))
+                                </div>
+                            }
+
+                            @if (!string.IsNullOrEmpty(msg.VoiceMessagePath))
+                            {
+                                <div class="voice-message-container">
+                                    <audio controls src="@GetAudioDataUrl(msg.VoiceMessagePath)"></audio>
                                 </div>
                             }
 

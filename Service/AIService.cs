@@ -1,4 +1,4 @@
-﻿using GUA_Blazor.Models;
+using GUA_Blazor.Models;
 using GUA_Blazor.Tools;
 using GUA_Blazor.Tools.Filesystem;
 using GUA_Blazor.Tools.Terminal;
@@ -11,6 +11,7 @@ using LlmTornado.ChatFunctions;
 using LlmTornado.Code;
 using LlmTornado.Common;
 using LlmTornado.Images;
+using LlmTornado.Moderation;
 
 namespace GUA_Blazor.Service;
 
@@ -47,7 +48,7 @@ public class AIService
     public AIService(string sessionId)
     {
         _sessionId = sessionId;
-        _api = new TornadoApi(new Uri("http://26.86.240.240:8080/"), Environment.GetEnvironmentVariable("DEEPSEEK"));
+        _api = new TornadoApi(new Uri("http://localhost:8080/"), Environment.GetEnvironmentVariable("DEEPSEEK"));
         _conversation = _api.Chat.CreateConversation(new ChatRequest()
         {
             Messages = [
@@ -76,6 +77,7 @@ public class AIService
             ["transcribe_audio"] = new TranscribeAudio(_sessionId),
             ["burn_subtitles"] = new BurnSubtitles(_sessionId),
             ["text_to_speech"] = new TextToSpeech(_sessionId),
+            ["send_voice_message"] = new SendVoiceMessage(_sessionId),
             ["merge_audio"] = new MergeAudio(_sessionId),
             ["merge_audio_with_video"] = new MergeAudioWithVideo(_sessionId),
             ["web_search"] = new WebSearch(),
@@ -189,6 +191,12 @@ public class AIService
                 try
                 {
                     var result = await tool.ExecuteFunctionAsync(call);
+
+                    if (result is string resultString)
+                    {
+                        if (resultString!.Contains("[VOICE_MESSAGE_SENT]"))
+                            onResponse.Invoke(result.ToString());
+                    }
 
                     if (result is BrowserUseOutput buo)
                     {
