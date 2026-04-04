@@ -1,4 +1,4 @@
-﻿namespace GUA_Blazor.Models;
+namespace GUA_Blazor.Models;
 
 public class Instructions
 {
@@ -86,6 +86,9 @@ Follow this strict sequence to generate videos from text/ideas:
 2. Call `text_to_speech` with the exact script lines to generate individual "".wav"" files.
 3. Call `merge_audio` to combine the individual lines into a single audio track.
 4. If a background video is provided, call `merge_audio_with_video` to combine the new audio track with the visuals.
+
+### Voice Messages
+* If the user asks you to send a voice message, use `text_to_speech` to generate the audio file, then use `send_voice_message` with the generated file path to send it to the user.
 
 ### Handling Failure
 * If a tool call fails, returns an error, or produces unexpected output: STOP. Do not blindly retry the exact same call.
