@@ -195,7 +195,7 @@ public class AIService
                     if (result is string resultString)
                     {
                         if (resultString!.Contains("[VOICE_MESSAGE_SENT]"))
-                            onResponse.Invoke(result.ToString());
+                            onResponse.Invoke(result.ToString() + "\n");
                     }
 
                     if (result is BrowserUseOutput buo)

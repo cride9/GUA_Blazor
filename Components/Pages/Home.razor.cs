@@ -31,6 +31,10 @@ public partial class Home
 
     private bool isAgentMode = false;
 
+    private Dictionary<string, ElementReference> _voiceContainers = new();
+    bool _shouldReinitVoicePlayers = false;
+    private Dictionary<string, string> _audioDataUrlCache = new();
+
     public Home(SessionFactory _factory)
     {
         chatSessionFactory = _factory;
@@ -49,6 +53,74 @@ public partial class Home
         {
             _inputText = value;
             _ = AutoResize();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("voicePlayer.initAll");
+            }
+            catch (JSException ex)
+            {
+                Console.WriteLine($"Failed to init voice players: {ex.Message}");
+            }
+        }
+
+        // Handle dynamic re-initialization AFTER render completes
+        if (_shouldReinitVoicePlayers)
+        {
+            _shouldReinitVoicePlayers = false;
+            await Task.Yield(); // Let Blazor finish the render cycle
+            try
+            {
+                await JS.InvokeVoidAsync("voicePlayer.initAll");
+            }
+            catch (JSException ex)
+            {
+                Console.WriteLine($"Failed to re-init voice players: {ex.Message}");
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            // Clean up ALL voice players
+            await JS.InvokeVoidAsync("voicePlayer.disposeAll");
+        }
+        catch { /* Ignore disposal errors */ }
+    }
+
+    private async Task ReinitializeVoicePlayers()
+    {
+        try
+        {
+            await JS.InvokeVoidAsync("voicePlayer.initAll");
+        }
+        catch (JSException ex)
+        {
+            Console.WriteLine($"Failed to re-init voice players: {ex.Message}");
+        }
+    }
+
+    private async Task InitializeVoicePlayer(string messageId)
+    {
+        if (_voiceContainers.TryGetValue(messageId, out var container))
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("voicePlayer.init", container);
+                StateHasChanged();
+            }
+            catch (JSException ex)
+            {
+                Console.WriteLine($"Failed to init voice player for {messageId}: {ex.Message}");
+            }
         }
     }
 
@@ -94,7 +166,11 @@ public partial class Home
 
                     if (chunk == "//NEW_TURN//")
                     {
-                        currentAgentMessage = null;
+                        if (currentAgentMessage != null &&
+                            !string.IsNullOrWhiteSpace(StripToolcall(currentAgentMessage.Content)))
+                        {
+                            currentAgentMessage = null;
+                        }
                         return;
                     }
 
@@ -120,7 +196,6 @@ public partial class Home
                             currentAgentMessage.VoiceMessagePath = path;
                         }
                     }
-
                     StateHasChanged();
                 });
             });
@@ -148,7 +223,6 @@ public partial class Home
                             message.VoiceMessagePath = path;
                         }
                     }
-
                     StateHasChanged();
                 });
             });
@@ -156,6 +230,7 @@ public partial class Home
 
         isLoading = false;
         isStreaming = false;
+        _shouldReinitVoicePlayers = true;
         StateHasChanged();
     }
 
@@ -345,6 +420,7 @@ public partial class Home
 
     private string GetAudioDataUrl(string path)
     {
+        if (_audioDataUrlCache.TryGetValue(path, out var cached)) return cached;
         if (!File.Exists(path)) return string.Empty;
 
         var mimeType = Path.GetExtension(path).ToLowerInvariant() switch
@@ -355,8 +431,9 @@ public partial class Home
             _ => "audio/wav"
         };
 
-        var bytes = File.ReadAllBytes(path);
-        return $"data:{mimeType};base64,{Convert.ToBase64String(bytes)}";
+        var result = $"data:{mimeType};base64,{Convert.ToBase64String(File.ReadAllBytes(path))}";
+        _audioDataUrlCache[path] = result;
+        return result;
     }
 
     private async Task AutoResize()

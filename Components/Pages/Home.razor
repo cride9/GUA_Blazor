@@ -92,7 +92,7 @@
 
                     var cleanContent = StripToolcall(msg.Content);
 
-                    <div class="message @(msg.IsUser ? "user-msg" : "ai-msg")">
+                    <div class="message @(msg.IsUser ? "user-msg" : "ai-msg")" @key="msg">
                         @if (!msg.IsUser)
                         {
                             <div class="avatar ai-avatar">G</div>
@@ -113,7 +113,41 @@
                             @if (!string.IsNullOrEmpty(msg.VoiceMessagePath))
                             {
                                 <div class="voice-message-container">
-                                    <audio controls src="@GetAudioDataUrl(msg.VoiceMessagePath)"></audio>
+                                    <button class="voice-play-btn" type="button">
+                                        <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
+                                    </button>
+
+                                    <div class="voice-waveform paused">
+                                        <div class="voice-wave-bar"></div>
+                                        <div class="voice-wave-bar"></div>
+                                        <div class="voice-wave-bar"></div>
+                                        <div class="voice-wave-bar"></div>
+                                        <div class="voice-wave-bar"></div>
+                                        <div class="voice-wave-bar"></div>
+                                    </div>
+
+                                    <span class="voice-time">0:00 / 0:00</span>
+
+                                    <div class="voice-progress-container">
+                                        <div class="voice-progress-bar" style="width: 0%"></div>
+                                    </div>
+
+                                    <button class="voice-volume-btn" type="button">
+                                        <svg viewBox="0 0 24 24">
+                                            <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                                            <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                                        </svg>
+                                    </button>
+
+                                    <button class="voice-more-btn" type="button">
+                                        <svg viewBox="0 0 24 24">
+                                            <circle cx="12" cy="5" r="2"></circle>
+                                            <circle cx="12" cy="12" r="2"></circle>
+                                            <circle cx="12" cy="19" r="2"></circle>
+                                        </svg>
+                                    </button>
+
+                                    <audio src="@GetAudioDataUrl(msg.VoiceMessagePath)" preload="metadata" crossorigin="anonymous"></audio>
                                 </div>
                             }
 
