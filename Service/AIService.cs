@@ -87,6 +87,7 @@ public class AIService
             ["create_pdf"] = new CreatePdf(_sessionId),
             ["git_ingest"] = new GitIngestTool(),
             ["browser_use"] = new BrowserUseTool(),
+            ["test_web"] = new TestWeb()
         };
     }
 

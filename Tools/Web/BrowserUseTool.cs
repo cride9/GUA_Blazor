@@ -92,64 +92,85 @@ public class BrowserSession
     private IPage? _page;
     private readonly SemaphoreSlim _initLock = new(1, 1);
 
-    private const string BuildInteractiveElementsJs = @"
-    () => {
-        const interactables = 'button, a, input, select, textarea, iframe, canvas, [role=""button""], [role=""checkbox""], [tabindex]:not([tabindex=""-1""])';
-        const elements = Array.from(document.querySelectorAll('*'))
-            .filter(el => {
-                const rect = el.getBoundingClientRect();
-                const style = window.getComputedStyle(el);
-                
-                // Must have physical size and be visible
-                if (rect.width <= 2 || rect.height <= 2 || style.visibility === 'hidden' || style.opacity === '0' || style.display === 'none') return false;
+    private const string BuildInteractiveElementsJs =
+@"
+() => {
+  const ROLES = 'button,a,input,select,textarea,iframe,canvas,' +
+    '[role=""button""],[role=""checkbox""],[role=""link""],[role=""menuitem""],' +
+    '[role=""tab""],[role=""switch""],[role=""radio""],[role=""combobox""],' +
+    '[role=""option""],[role=""listbox""],[role=""treeitem""],[role=""gridcell""],' +
+    '[tabindex]:not([tabindex=""-1""])';
 
-                if (el.matches(interactables)) return true;
-                
-                // Catch custom elements
-                if (style.cursor === 'pointer') return true;
-                
-                const cName = (typeof el.className === 'string') ? el.className.toLowerCase() : '';
-                if (cName.includes('captcha') || cName.includes('checkbox') || cName.includes('turnstile')) return true;
+  const isVisible = (el, rect, style) =>
+    rect.width > 2 && rect.height > 2 &&
+    style.visibility !== 'hidden' &&
+    style.opacity !== '0' &&
+    style.display !== 'none' &&
+    el.getAttribute('aria-hidden') !== 'true' &&
+    !el.disabled &&
+    el.getAttribute('aria-disabled') !== 'true';
 
-                return false;
-            });
-        
-        elements.forEach((el, index) => el.setAttribute('data-browser-use-index', index));
-        
-        return elements.map((el, index) => {
-            // 1. Tag & Class
-            let tag = el.tagName.toLowerCase();
-            if (typeof el.className === 'string' && el.className.trim() !== '') {
-                const classes = el.className.split(' ').filter(c => c.trim() !== '').slice(0, 2).join('.');
-                if (classes) tag += `.${classes}`;
-            }
+  const inViewport = rect =>
+    rect.top >= 0 && rect.bottom <= window.innerHeight &&
+    rect.left >= 0 && rect.right <= window.innerWidth;
 
-            // 2. Direct Text
-            let text = el.getAttribute('aria-label') || el.getAttribute('title') || el.value || el.innerText || '';
-            text = text.replace(/\s+/g, ' ').trim().substring(0, 40);
+  const direct = Array.from(document.querySelectorAll(ROLES));
+  const directSet = new Set(direct);
 
-            // 3. Parent Context (If the element is empty, what does the surrounding text say?)
-            let contextStr = '';
-            if (!text && el.parentElement) {
-                let pText = el.parentElement.innerText || '';
-                pText = pText.replace(/\s+/g, ' ').trim().substring(0, 40);
-                if (pText) contextStr = `(Context: ""${pText}"")`;
-            }
+  const custom = Array.from(document.querySelectorAll('*')).filter(el => {
+    if (directSet.has(el)) return false;
+    const rect = el.getBoundingClientRect();
+    const style = window.getComputedStyle(el);
+    if (!isVisible(el, rect, style)) return false;
+    const c = (typeof el.className === 'string') ? el.className.toLowerCase() : '';
+    return style.cursor === 'pointer' ||
+      c.includes('captcha') || c.includes('checkbox') || c.includes('turnstile');
+  });
 
-            let displayLabel = text ? `""${text}""` : contextStr ? contextStr : '(empty)';
+  const all = [...direct, ...custom].filter(el => {
+    const rect = el.getBoundingClientRect();
+    const style = window.getComputedStyle(el);
+    return isVisible(el, rect, style);
+  });
 
-            // 4. Coordinates and Size
-            const rect = el.getBoundingClientRect();
-            const posX = Math.round(rect.left + rect.width / 2);
-            const posY = Math.round(rect.top + rect.height / 2);
-            const width = Math.round(rect.width);
-            const height = Math.round(rect.height);
-            
-            // Output example: [6] <div.captcha-box> (Context: ""I'm not a robot"") [Size: 28x28] [x:511, y:173]
-            return `[${index}] <${tag}> ${ displayLabel}
-[Size: ${width}x${height}] [x:${posX}, y:${ posY}]`;
-        }).join('\n');
+  const sorted = [
+    ...all.filter(el => inViewport(el.getBoundingClientRect())),
+    ...all.filter(el => !inViewport(el.getBoundingClientRect()))
+  ];
+
+  sorted.forEach((el, i) => el.setAttribute('data-browser-use-index', i));
+
+  return sorted.map((el, i) => {
+    let tag = el.tagName.toLowerCase();
+    if (el.tagName === 'INPUT') tag += `[${el.getAttribute('type') || 'text'}]`;
+
+    const cls = (typeof el.className === 'string')
+      ? el.className.split(' ').filter(c => c.trim()).slice(0, 2).join('.')
+      : '';
+    if (cls) tag += `.${cls}`;
+
+    let text = (el.getAttribute('aria-label') || el.getAttribute('title') ||
+      el.getAttribute('placeholder') || el.value || el.innerText || '')
+      .replace(/\s+/g, ' ').trim().substring(0, 40);
+
+    if (!text) {
+      let ctx = el.parentElement;
+      while (ctx && ctx !== document.body) {
+        const t = (ctx.innerText || '').replace(/\s+/g, ' ').trim();
+        if (t) { text = `(ctx: ""${t.substring(0, 40)}"")`; break; }
+        ctx = ctx.parentElement;
+      }
     }
+
+    const rect = el.getBoundingClientRect();
+    const x = Math.round(rect.left + rect.width / 2);
+    const y = Math.round(rect.top + rect.height / 2);
+    const w = Math.round(rect.width);
+    const h = Math.round(rect.height);
+
+    return `[${i}] <${tag}> ${text || '(empty)'} [${w}x${h}] [${x},${y}]`;
+  }).join('\n');
+}
 ";
 
     private BrowserSession() { }
@@ -291,23 +312,20 @@ public class BrowserSession
 
         var lines = (interactiveElements?.Split('\n', StringSplitOptions.RemoveEmptyEntries) ?? []).ToArray();
 
-        if (lines.Length > 50)
-        {
-            interactiveElements = string.Join('\n', lines[..50]) + $"\n... ({lines.Length - 50} more elements not shown)";
-        }
-        else
-        {
-            interactiveElements = string.Join('\n', lines);
-        }
+        const int cap = 80;
+        interactiveElements = lines.Length > cap
+            ? string.Join('\n', lines[..cap]) + $"\n... ({lines.Length - cap} more off-screen elements not shown — scroll down then extract_content to re-index)"
+            : string.Join('\n', lines);
 
         var state = new BrowserState()
         {
             Url = _page.Url,
             Title = await _page.TitleAsync(),
             InteractiveElements = interactiveElements,
-
-            Instructions = "DO NOT guess indexes. Read the tags carefully. To solve custom captchas, look for an element with '.checkbox' in its tag (e.g., <div.captcha-box-checkbox>) and click its index. If you clicked the wrong thing and left the page, use the 'go_back' action.",
-
+            Instructions = "DO NOT guess indexes. Elements are sorted: viewport-visible first, off-screen after. " +
+                           "If your target is not listed, use scroll_down then extract_content to re-index. " +
+                           "To solve custom captchas, look for an element with '.checkbox' in its tag (e.g., <div.captcha-box-checkbox>) and click its index. " +
+                           "If you clicked the wrong thing and left the page, use the go_back action.",
             ScreenshotBase64 = null,
             ScreenshotMime = null
         };
