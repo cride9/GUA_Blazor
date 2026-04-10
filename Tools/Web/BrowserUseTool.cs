@@ -30,6 +30,7 @@ public class BrowserUseTool : AITool<BrowserUseArguments>
                 "wait" => await browser.WaitAsync(args.Seconds),
                 "extract_content" => await browser.ExtractContentAsync(),
                 "click_coordinates" => await browser.ClickCoordinatesAsync(args.X, args.Y),
+                "click_coordinates_batch" => await browser.ClickCoordinatesBatchAsync(args.Coordinates),
                 _ => throw new Exception($"Unknown action: {args.Action}")
             };
         }
@@ -39,7 +40,7 @@ public class BrowserUseTool : AITool<BrowserUseArguments>
         }
 
         // After every action, return the result PLUS the new state of the browser
-        bool includeScreenshot = args.Action.ToLower() is "extract_content" or "go_to_url";
+        bool includeScreenshot = true; // Always capture screenshots for visual context
         var currentState = await browser.GetCurrentStateAsync(includeScreenshot) as BrowserState;
 
         if (currentState is null)
@@ -66,7 +67,7 @@ public class BrowserUseTool : AITool<BrowserUseArguments>
                 {
                     type = "string",
                     description = "The browser action to perform.",
-                    @enum = new[] { "go_to_url", "click_element", "click_coordinates", "input_text", "scroll_down", "scroll_up", "send_keys", "go_back", "refresh", "wait", "extract_content" }
+                    @enum = new[] { "go_to_url", "click_element", "click_coordinates", "click_coordinates_batch", "input_text", "scroll_down", "scroll_up", "send_keys", "go_back", "refresh", "wait", "extract_content" }
                 },
                 url = new { type = "string", description = "URL for 'go_to_url' action." },
                 index = new { type = "integer", description = "Element index for 'click_element' or 'input_text' actions." },
@@ -75,7 +76,8 @@ public class BrowserUseTool : AITool<BrowserUseArguments>
                 keys = new { type = "string", description = "Keys to send for 'send_keys' action." },
                 seconds = new { type = "integer", description = "Seconds to wait for 'wait' action." },
                 x = new { type = "number", description = "X coordinate for 'click_coordinates' action. Only use this if the normal click is failing" },
-                y = new { type = "number", description = "Y coordinate for 'click_coordinates' action. Only use this if the normal click is failing" }
+                y = new { type = "number", description = "Y coordinate for 'click_coordinates' action. Only use this if the normal click is failing" },
+                coordinates = new { type = "array", description = "Array of [x, y] coordinate pairs for 'click_coordinates_batch' action. Use this to click multiple elements rapidly in one action - perfect for image grid captchas. Example: [[150,250],[280,250],[410,380],[430,650]] to click 3 grid cells and a verify button.", items = new { type = "array", items = new { type = "number" } } }
             },
             required = new List<string> { "action" }
         });
@@ -187,17 +189,30 @@ public class BrowserSession
             _playwright = await Playwright.CreateAsync();
             _browser = await _playwright.Chromium.LaunchAsync(new BrowserTypeLaunchOptions
             {
-                Headless = false, // Set to true if you don't want to see the browser UI
-                Args = new[] { "--disable-web-security" }
+                Headless = Environment.GetEnvironmentVariable("GUA_HEADLESS") != "false", // default headless
+                Args = new[] {
+                    "--disable-web-security",
+                    "--disable-blink-features=AutomationControlled",
+                    "--no-first-run",
+                    "--no-default-browser-check"
+                }
             });
 
             var context = await _browser.NewContextAsync(new BrowserNewContextOptions
             {
-                ViewportSize = new ViewportSize { Width = 1920, Height = 1080 },
-                
+                ViewportSize = new ViewportSize { Width = 1280, Height = 720 },
+                UserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
             });
 
             _page = await context.NewPageAsync();
+
+            // Stealth: remove webdriver flag and automation indicators
+            await _page.AddInitScriptAsync(@"
+                Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+                Object.defineProperty(navigator, 'languages', { get: () => ['en-US', 'en'] });
+                Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+                window.chrome = { runtime: {} };
+            ");
         }
         finally
         {
@@ -211,8 +226,93 @@ public class BrowserSession
         if (!url.StartsWith("http")) url = "https://" + url;
 
         await _page!.GotoAsync(url, new PageGotoOptions { WaitUntil = WaitUntilState.DOMContentLoaded });
-        Task.Delay(2000).Wait(); // Give the page a moment to settle after load
+        await Task.Delay(2000); // Give the page a moment to settle after load
+
+        // Auto-bypass Cloudflare Turnstile if detected
+        await TryBypassCloudflare();
+
         return $"Navigated to {url}";
+    }
+
+    private async Task TryBypassCloudflare()
+    {
+        try
+        {
+            // Check if page contains Cloudflare challenge
+            var hasChallenge = await _page!.EvaluateAsync<bool>(
+                "() => document.title.includes('Just a moment') || " +
+                "document.querySelector('iframe[src*=\"challenges.cloudflare\"]') !== null || " +
+                "document.body.innerText.includes('Verify you are human')");
+
+            if (!hasChallenge) return;
+
+            Console.WriteLine("[cloudflare] Turnstile challenge detected, attempting bypass...");
+
+            // Wait for the Turnstile iframe to appear
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                await Task.Delay(2000);
+
+                // Try clicking the Turnstile checkbox inside iframe
+                var frames = _page.Frames;
+                foreach (var frame in frames)
+                {
+                    if (frame.Url.Contains("challenges.cloudflare"))
+                    {
+                        try
+                        {
+                            // Click the checkbox inside the Turnstile iframe
+                            var checkbox = frame.Locator("input[type='checkbox'], .cb-i, #challenge-stage");
+                            if (await checkbox.CountAsync() > 0)
+                            {
+                                await checkbox.First.ClickAsync(new LocatorClickOptions { Timeout = 3000 });
+                                Console.WriteLine("[cloudflare] Clicked Turnstile checkbox");
+                                await Task.Delay(3000);
+                                return;
+                            }
+
+                            // Try clicking by coordinates within the iframe
+                            await frame.ClickAsync("body", new FrameClickOptions
+                            {
+                                Position = new Position { X = 24, Y = 24 },
+                                Timeout = 2000
+                            });
+                            Console.WriteLine("[cloudflare] Clicked Turnstile iframe body");
+                            await Task.Delay(3000);
+                            return;
+                        }
+                        catch (Exception ex)
+                        {
+                            Console.WriteLine($"[cloudflare] Frame click attempt {attempt} failed: {ex.Message}");
+                        }
+                    }
+                }
+
+                // Fallback: click coordinates where Turnstile checkbox usually appears
+                try
+                {
+                    await _page.Mouse.ClickAsync(215, 400);
+                    Console.WriteLine($"[cloudflare] Fallback coordinate click attempt {attempt}");
+                    await Task.Delay(3000);
+
+                    // Check if we passed
+                    var stillBlocked = await _page.EvaluateAsync<bool>(
+                        "() => document.body.innerText.includes('Verify you are human')");
+                    if (!stillBlocked)
+                    {
+                        Console.WriteLine("[cloudflare] Bypass succeeded!");
+                        return;
+                    }
+                }
+                catch { }
+            }
+
+            Console.WriteLine("[cloudflare] Could not bypass Turnstile after 3 attempts");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[cloudflare] Bypass error: {ex.Message}");
+        }
     }
 
     public async Task<string> ClickElementAsync(int? index)
@@ -317,32 +417,218 @@ public class BrowserSession
             ? string.Join('\n', lines[..cap]) + $"\n... ({lines.Length - cap} more off-screen elements not shown — scroll down then extract_content to re-index)"
             : string.Join('\n', lines);
 
+        // Detect captcha grid and get its bounding box
+        var captchaInfo = await DetectCaptchaGrid();
+        string instructions = "DO NOT guess indexes. Read the tags carefully. To solve custom captchas, look for an element with '.checkbox' in its tag (e.g., <div.captcha-box-checkbox>) and click its index. If you clicked the wrong thing and left the page, use the 'go_back' action.";
+
+        if (captchaInfo != null)
+        {
+            instructions = captchaInfo.Instructions;
+            interactiveElements += "\n\n" + captchaInfo.GridMap;
+        }
+
         var state = new BrowserState()
         {
             Url = _page.Url,
             Title = await _page.TitleAsync(),
             InteractiveElements = interactiveElements,
-            Instructions = "DO NOT guess indexes. Elements are sorted: viewport-visible first, off-screen after. " +
-                           "If your target is not listed, use scroll_down then extract_content to re-index. " +
-                           "To solve custom captchas, look for an element with '.checkbox' in its tag (e.g., <div.captcha-box-checkbox>) and click its index. " +
-                           "If you clicked the wrong thing and left the page, use the go_back action.",
+            Instructions = instructions,
             ScreenshotBase64 = null,
             ScreenshotMime = null
         };
 
         if (includeScreenshot)
         {
-            var screenshotBytes = await _page.ScreenshotAsync(new PageScreenshotOptions
+            byte[] screenshotBytes;
+
+            if (captchaInfo != null && captchaInfo.CropBox != null)
             {
-                Type = ScreenshotType.Jpeg,
-                Quality = 75,
-                FullPage = false,
-            });
+                // Crop to just the captcha area for better detail
+                screenshotBytes = await _page.ScreenshotAsync(new PageScreenshotOptions
+                {
+                    Type = ScreenshotType.Jpeg,
+                    Quality = 90,
+                    FullPage = false,
+                    Clip = new Clip
+                    {
+                        X = captchaInfo.CropBox.X,
+                        Y = captchaInfo.CropBox.Y,
+                        Width = captchaInfo.CropBox.Width,
+                        Height = captchaInfo.CropBox.Height
+                    }
+                });
+                Console.WriteLine($"[captcha] Cropped screenshot to captcha grid ({captchaInfo.CropBox.Width}x{captchaInfo.CropBox.Height})");
+            }
+            else
+            {
+                screenshotBytes = await _page.ScreenshotAsync(new PageScreenshotOptions
+                {
+                    Type = ScreenshotType.Jpeg,
+                    Quality = 80,
+                    FullPage = false,
+                });
+            }
+
             state.ScreenshotMime = "image/jpeg";
             state.ScreenshotBase64 = $"data:{state.ScreenshotMime};base64,{Convert.ToBase64String(screenshotBytes)}";
         }
 
         return state;
+    }
+
+    private class CaptchaGridInfo
+    {
+        public string Instructions { get; set; } = "";
+        public string GridMap { get; set; } = "";
+        public CropRect? CropBox { get; set; }
+    }
+
+    private class CropRect
+    {
+        public float X { get; set; }
+        public float Y { get; set; }
+        public float Width { get; set; }
+        public float Height { get; set; }
+    }
+
+    private async Task<CaptchaGridInfo?> DetectCaptchaGrid()
+    {
+        try
+        {
+            // Check for reCAPTCHA challenge iframe
+            var captchaData = await _page!.EvaluateAsync<string>(@"() => {
+                // Look for reCAPTCHA challenge iframe
+                const rcIframes = document.querySelectorAll('iframe[src*=""recaptcha""], iframe[src*=""hcaptcha""], iframe[title*=""challenge""]');
+                for (const iframe of rcIframes) {
+                    const rect = iframe.getBoundingClientRect();
+                    if (rect.width > 200 && rect.height > 200) {
+                        return JSON.stringify({
+                            type: 'recaptcha_challenge',
+                            x: rect.x, y: rect.y,
+                            width: rect.width, height: rect.height
+                        });
+                    }
+                }
+
+                // Look for reCAPTCHA anchor iframe (checkbox)
+                const anchorIframes = document.querySelectorAll('iframe[src*=""anchor""], iframe[src*=""checkbox""]');
+                for (const iframe of anchorIframes) {
+                    const rect = iframe.getBoundingClientRect();
+                    if (rect.width > 50) {
+                        return JSON.stringify({
+                            type: 'recaptcha_checkbox',
+                            x: rect.x, y: rect.y,
+                            width: rect.width, height: rect.height
+                        });
+                    }
+                }
+
+                // Check page text for captcha indicators
+                const bodyText = document.body.innerText || '';
+                if (bodyText.includes('Select all images') || bodyText.includes('select all squares')) {
+                    return JSON.stringify({ type: 'captcha_text_detected' });
+                }
+
+                return null;
+            }");
+
+            if (string.IsNullOrEmpty(captchaData) || captchaData == "null")
+                return null;
+
+            var json = System.Text.Json.JsonDocument.Parse(captchaData);
+            var root = json.RootElement;
+            var type = root.GetProperty("type").GetString();
+
+            if (type == "recaptcha_challenge")
+            {
+                float ix = (float)root.GetProperty("x").GetDouble();
+                float iy = (float)root.GetProperty("y").GetDouble();
+                float iw = (float)root.GetProperty("width").GetDouble();
+                float ih = (float)root.GetProperty("height").GetDouble();
+
+                // The challenge iframe contains the 3x3 grid
+                // Grid typically starts ~90px from top of iframe (after header)
+                // Each cell is roughly (iw-20)/3 wide and similar height
+                float cellW = (iw - 20) / 3;
+                float cellH = cellW; // cells are square
+                float gridStartX = ix + 10;
+                float gridStartY = iy + 100; // skip the header
+                float verifyY = iy + ih - 40; // verify button near bottom
+                float verifyX = ix + iw - 60;
+
+                var gridMap = new System.Text.StringBuilder();
+                gridMap.AppendLine("[CAPTCHA GRID DETECTED - 3x3 image grid]");
+                gridMap.AppendLine("Use click_coordinates_batch to select ALL matching images + VERIFY in ONE action.");
+                gridMap.AppendLine("Grid cell centers (use these exact coordinates):");
+
+                int cellNum = 1;
+                for (int row = 0; row < 3; row++)
+                {
+                    for (int col = 0; col < 3; col++)
+                    {
+                        float cx = gridStartX + col * cellW + cellW / 2;
+                        float cy = gridStartY + row * cellH + cellH / 2;
+                        gridMap.AppendLine($"  Cell {cellNum} (row {row+1}, col {col+1}): [{(int)cx}, {(int)cy}]");
+                        cellNum++;
+                    }
+                }
+                gridMap.AppendLine($"  VERIFY button: [{(int)verifyX}, {(int)verifyY}]");
+                gridMap.AppendLine("IMPORTANT: Analyze the cropped screenshot. Pick ALL cells containing the target object. Include VERIFY at the end.");
+
+                return new CaptchaGridInfo
+                {
+                    Instructions = $"CAPTCHA IMAGE GRID DETECTED! The screenshot shows ONLY the captcha area (cropped for detail). Select ALL matching images using click_coordinates_batch with the cell coordinates listed below, plus the VERIFY button. Act in ONE action - the challenge times out quickly!",
+                    GridMap = gridMap.ToString(),
+                    CropBox = new CropRect
+                    {
+                        X = Math.Max(0, ix - 5),
+                        Y = Math.Max(0, iy - 5),
+                        Width = Math.Min(iw + 10, 1280 - ix),
+                        Height = Math.Min(ih + 10, 720 - iy)
+                    }
+                };
+            }
+            else if (type == "recaptcha_checkbox")
+            {
+                float ix = (float)root.GetProperty("x").GetDouble();
+                float iy = (float)root.GetProperty("y").GetDouble();
+                float iw = (float)root.GetProperty("width").GetDouble();
+                float ih = (float)root.GetProperty("height").GetDouble();
+
+                float checkboxX = ix + 25;
+                float checkboxY = iy + ih / 2;
+
+                return new CaptchaGridInfo
+                {
+                    Instructions = $"reCAPTCHA checkbox detected. Click coordinates [{(int)checkboxX}, {(int)checkboxY}] to activate it.",
+                    GridMap = $"[reCAPTCHA CHECKBOX at [{(int)checkboxX}, {(int)checkboxY}] - click it with click_coordinates]",
+                    CropBox = null // don't crop for checkbox
+                };
+            }
+
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[captcha] Detection error: {ex.Message}");
+            return null;
+        }
+    }
+
+
+    public async Task<byte[]?> GetScreenshotBytesAsync()
+    {
+        if (_page == null) return null;
+        try
+        {
+            return await _page.ScreenshotAsync(new PageScreenshotOptions
+            {
+                Type = ScreenshotType.Jpeg,
+                Quality = 85,
+                FullPage = false,
+            });
+        }
+        catch { return null; }
     }
 
     private async Task WaitForNetworkIdle()
@@ -377,6 +663,43 @@ public class BrowserSession
             return $"Failed to click coordinates: {ex.Message}";
         }
     }
+
+    public async Task<string> ClickCoordinatesBatchAsync(List<List<double>>? coordinates)
+    {
+        if (coordinates == null || coordinates.Count == 0)
+            throw new Exception("Coordinates list is required and must not be empty.");
+
+        var results = new List<string>();
+        foreach (var coord in coordinates)
+        {
+            if (coord.Count < 2)
+            {
+                results.Add("Skipped invalid coordinate (need [x, y])");
+                continue;
+            }
+
+            double cx = coord[0];
+            double cy = coord[1];
+
+            try
+            {
+                await _page!.Mouse.MoveAsync((float)cx, (float)cy, new MouseMoveOptions { Steps = 3 });
+                await Task.Delay(Random.Shared.Next(80, 200));
+                await _page!.Mouse.DownAsync();
+                await Task.Delay(Random.Shared.Next(40, 120));
+                await _page!.Mouse.UpAsync();
+                await Task.Delay(Random.Shared.Next(200, 500));
+                results.Add($"Clicked ({cx}, {cy})");
+            }
+            catch (Exception ex)
+            {
+                results.Add($"Failed ({cx}, {cy}): {ex.Message}");
+            }
+        }
+
+        await WaitForNetworkIdle();
+        return $"Batch clicked {results.Count} coordinates: {string.Join("; ", results)}";
+    }
 }
 
 public class BrowserUseArguments
@@ -407,6 +730,9 @@ public class BrowserUseArguments
 
     [JsonPropertyName("y")]
     public double? Y { get; set; }
+
+    [JsonPropertyName("coordinates")]
+    public List<List<double>>? Coordinates { get; set; }
 }
 
 public sealed class BrowserUseOutput

@@ -18,13 +18,13 @@ public class ChatSession
         return Task.FromResult(newMessage);
     }
 
-    public Task SendMessageWithImage(string message, List<string> imagesPath, Action<string> onResponse)
+    public Task SendMessageWithImage(string message, List<string> imagesPath, Action<string> onResponse, CancellationToken ct = default)
     {
-        return Service.SendMessageWithImage(message, imagesPath, onResponse);
+        return Service.SendMessageWithImage(message, imagesPath, onResponse, ct);
     }
 
-    public Task SendMessageAgent(string message, List<string> imagesPath, Action<string> onResponse)
+    public Task SendMessageAgent(string message, List<string> imagesPath, Action<string> onResponse, CancellationToken ct = default)
     {
-        return Service.SendMessageAgent(message, imagesPath, onResponse);
+        return Service.SendMessageAgent(message, imagesPath, onResponse, ct);
     }
 }
