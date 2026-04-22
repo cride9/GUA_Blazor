@@ -101,6 +101,7 @@ public class AIService
             ["git_ingest"] = new GitIngestTool(),
             ["browser_use"] = new BrowserUseTool(),
             ["vision_detect"] = new VisionDetectTool(),
+            ["ask_user"] = new AskUser(),
         };
     }
 
@@ -237,7 +238,12 @@ public class AIService
                 {
                     if (result?.Result?.Name == "stop_loop" && result?.Result?.Content == "stopping_loop")
                     {
-                        stopSignal.Stop = true;
+                        if (stopSignal != null) stopSignal.Stop = true;
+                    }
+
+                    if (result?.Result?.Name == "ask_user" && result?.Result?.Content is string content && content.StartsWith("[USER_PROMPT_REQUIRED]"))
+                    {
+                        if (stopSignal != null) stopSignal.Stop = true;
                     }
                 }
             }

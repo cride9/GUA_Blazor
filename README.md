@@ -30,7 +30,9 @@ GUA is a powerful, autonomous AI assistant built on **Blazor Server (.NET 10)**.
   - Video-to-audio extraction and burning subtitles with FFmpeg.
   - High-accuracy transcription via Whisper.
 - **Repository Ingestion**: Analyze entire GitHub repositories in one go using the `GitIngest` tool.
-- **Modern UI**: Dark-themed Blazor interface with markdown support and collapsible tool-execution logs.
+- **Modern UI**: Dark-themed Blazor interface with markdown support, collapsible tool-execution logs, and **resizable sidebar**.
+- **Control Flow**: Stop generation at any time and a dedicated `ask_user` tool for agent clarifications.
+- **Visual Feedback**: Real-time toolcall animations for better transparency.
 
 ---
 
@@ -104,7 +106,8 @@ The text-to-speech service requires the Kokoro Python implementation.
 | :--- | :--- |
 | **Filesystem** | `create_file`, `read_file`, `edit_file`, `delete_file`, `list_directory`, `zip_directory`, `unzip_file`, `create_pdf` |
 | **Terminal** | `run_command`, `read_terminal_output` |
-| **Web** | `web_search`, `scrape_url`, `browser_use`, `git_ingest` |
+| **Web** | `web_search`, `scrape_url`, `browser_use`, `git_ingest`, `vision_detect` |
+| **Control** | `stop_loop`, `ask_user` |
 | **Media** | `extract_audio`, `transcribe_audio`, `burn_subtitles`, `text_to_speech`, `merge_audio` |
 
 ---
