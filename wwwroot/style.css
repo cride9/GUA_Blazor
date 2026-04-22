@@ -1520,3 +1520,194 @@ html, body {
         transform: translateY(-5px);
     }
 }
+
+/* ── Screenshot Sidebar ── */
+.screenshot-sidebar {
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+}
+.ss-resize-handle {
+    position: absolute;
+    left: -3px;
+    top: 0;
+    bottom: 0;
+    width: 6px;
+    cursor: col-resize;
+    z-index: 10;
+    transition: background .15s;
+}
+
+.ss-resize-handle:hover,
+.ss-resize-handle:active {
+    background: var(--accent);
+    opacity: 0.5;
+}
+
+
+.ss-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--border);
+}
+
+.ss-title {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.ss-delete-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    transition: color .15s, background .15s;
+}
+
+.ss-delete-btn:hover {
+    color: #e05555;
+    background: rgba(224, 85, 85, 0.1);
+}
+
+.ss-delete-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.ss-viewer {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px;
+    overflow: hidden;
+}
+
+.ss-image {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    cursor: zoom-in;
+    transition: border-color .15s;
+}
+
+.ss-image:hover {
+    border-color: var(--accent);
+}
+
+.ss-nav {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    padding: 12px 16px;
+    border-top: 1px solid var(--border);
+}
+
+.ss-nav-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    transition: all .15s;
+}
+
+.ss-nav-btn:hover:not(:disabled) {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-dim);
+}
+
+.ss-nav-btn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.ss-nav-btn svg {
+    width: 16px;
+    height: 16px;
+}
+
+.ss-counter {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-variant-numeric: tabular-nums;
+    min-width: 48px;
+    text-align: center;
+}
+
+.ss-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    color: var(--muted);
+    padding: 24px;
+}
+
+.ss-empty svg {
+    width: 48px;
+    height: 48px;
+    opacity: 0.3;
+}
+
+.ss-empty span {
+    font-size: 13px;
+}
+
+.ss-empty-hint {
+    font-size: 11px !important;
+    text-align: center;
+    line-height: 1.4;
+    opacity: 0.6;
+}
+
+@media (max-width: 768px) {
+    .screenshot-sidebar {
+        display: none;
+    }
+}
+
+/* ── Stop Button ── */
+.stop-btn {
+    background: #e05555 !important;
+    color: #fff !important;
+    border: none;
+}
+
+.stop-btn:hover {
+    background: #c94444 !important;
+    filter: brightness(1.08);
+    transform: scale(1.04);
+    box-shadow: 0 2px 10px rgba(224, 85, 85, 0.4);
+}
+
+.stop-btn:active {
+    transform: scale(0.97);
+}
+
+.stop-btn svg {
+    width: 14px;
+    height: 14px;
+}
