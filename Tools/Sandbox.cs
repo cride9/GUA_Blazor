@@ -7,6 +7,12 @@ internal static class Sandbox
 {
     internal static string Resolve(string relativePath, string sessionId)
     {
+        if (string.IsNullOrWhiteSpace(relativePath))
+            throw new ArgumentException("relativePath cannot be null or empty.", nameof(relativePath));
+
+        if (string.IsNullOrWhiteSpace(sessionId))
+            throw new ArgumentException("sessionId cannot be null or empty.", nameof(sessionId));
+
         string basePath = SessionSandbox.GetWorkPath(sessionId);
 
         if (Path.IsPathRooted(relativePath))
@@ -19,10 +25,12 @@ internal static class Sandbox
         else
         {
             string relative = relativePath.TrimStart('/', '\\');
+
             if (relative.StartsWith("..") || relative.Contains(".."))
                 throw new SecurityException("Path traversal attempt detected!");
 
             string full = Path.GetFullPath(Path.Combine(basePath, relative));
+
             if (!SessionSandbox.IsPathAllowed(full, sessionId))
                 throw new SecurityException("Access denied: Path outside session sandbox!");
 
